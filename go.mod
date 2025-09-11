@@ -1,8 +1,12 @@
 module github.com/cctw-zed/wonder
 
-go 1.24.2
+go 1.21
 
-require github.com/gin-gonic/gin v1.10.1
+require (
+	github.com/bwmarrin/snowflake v0.3.0
+	github.com/gin-gonic/gin v1.10.1
+	go.etcd.io/etcd/client/v3 v3.5.10
+)
 
 require (
 	github.com/bytedance/sonic v1.11.6 // indirect
