@@ -4,15 +4,16 @@ import (
 	"context"
 	"fmt"
 	"github.com/cctw-zed/wonder/internal/domain/user"
+	"github.com/cctw-zed/wonder/pkg/snowflake/id"
 	"time"
 )
 
 type userService struct {
 	repo  user.UserRepository
-	idGen snowflake.Generator
+	idGen id.Generator
 }
 
-func NewUserService(repo user.UserRepository, idGen snowflake.Generator) user.UserService {
+func NewUserService(repo user.UserRepository, idGen id.Generator) user.UserService {
 	return &userService{
 		repo:  repo,
 		idGen: idGen,
@@ -26,7 +27,9 @@ func (s *userService) Register(ctx context.Context, email, name string) (*user.U
 	}
 
 	// 检查邮箱是否已存在
-	if _, err := s.repo.GetByEmail(ctx, email); err == nil {
+	if existingUser, err := s.repo.GetByEmail(ctx, email); err != nil {
+		return nil, fmt.Errorf("failed to check email existence: %w", err)
+	} else if existingUser != nil {
 		return nil, fmt.Errorf("email already exists")
 	}
 
@@ -47,6 +50,14 @@ func (s *userService) Register(ctx context.Context, email, name string) (*user.U
 }
 
 func (s *userService) validateEmail(email string) error {
-	// TODO 待实现
+	if email == "" {
+		return fmt.Errorf("email is required")
+	}
+
+	u := &user.User{Email: email}
+	if !u.IsEmailValid() {
+		return fmt.Errorf("invalid email format")
+	}
+
 	return nil
 }
