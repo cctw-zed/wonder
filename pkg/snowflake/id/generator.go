@@ -276,3 +276,11 @@ func GenerateInt64() int64 {
 	}
 	return defaultGenerator.GenerateInt64()
 }
+
+// GetDefault 获取默认生成器
+func GetDefault() Generator {
+	if defaultGenerator == nil {
+		panic("default generator not initialized")
+	}
+	return defaultGenerator
+}
