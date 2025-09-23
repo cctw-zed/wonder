@@ -10,8 +10,10 @@ import (
 
 	"github.com/cctw-zed/wonder/internal/application/service"
 	"github.com/cctw-zed/wonder/internal/domain/user"
+	"github.com/cctw-zed/wonder/internal/infrastructure/config"
 	"github.com/cctw-zed/wonder/internal/infrastructure/repository"
 	"github.com/cctw-zed/wonder/internal/testutil/builder"
+	"github.com/cctw-zed/wonder/pkg/logger"
 	idMocks "github.com/cctw-zed/wonder/pkg/snowflake/id/mocks"
 
 	"go.uber.org/mock/gomock"
@@ -22,6 +24,16 @@ import (
 // TestUserAggregateIntegrity verifies that User aggregate maintains business invariants
 // and data consistency across all operations
 func TestUserAggregateIntegrity(t *testing.T) {
+	// Initialize logger for tests
+	cfg := &config.Config{
+		Log: &config.LogConfig{
+			Level:       "debug",
+			Format:      "text",
+			ServiceName: "wonder-test",
+		},
+	}
+	logger.InitializeGlobalLogger(cfg)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -80,7 +92,7 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			assert.False(t, retrieved.UpdatedAt.IsZero())
 
 			// Verify entity still validates after retrieval
-			err = retrieved.Validate()
+			err = retrieved.Validate(context.Background())
 			require.NoError(t, err)
 		})
 
@@ -103,7 +115,7 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			time.Sleep(time.Millisecond)
 
 			// Update user name
-			err = initialUser.UpdateName("Updated Name")
+			err = initialUser.UpdateName(context.Background(), "Updated Name")
 			require.NoError(t, err)
 
 			// Save changes
@@ -121,7 +133,7 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			assert.True(t, updated.UpdatedAt.After(originalUpdatedAt.Truncate(time.Microsecond))) // UpdatedAt changed
 
 			// Verify entity still validates after update
-			err = updated.Validate()
+			err = updated.Validate(context.Background())
 			require.NoError(t, err)
 		})
 

@@ -1,11 +1,15 @@
 package user
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cctw-zed/wonder/internal/infrastructure/config"
+	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func TestUser_Creation(t *testing.T) {
@@ -70,6 +74,15 @@ func TestUser_Creation(t *testing.T) {
 }
 
 func TestUser_Validation(t *testing.T) {
+	// Initialize logger for tests
+	cfg := &config.Config{
+		Log: &config.LogConfig{
+			Level:       "debug",
+			Format:      "text",
+			ServiceName: "wonder-test",
+		},
+	}
+	logger.InitializeGlobalLogger(cfg)
 	tests := []struct {
 		name    string
 		user    *User
@@ -97,7 +110,7 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "user ID is required",
+			errMsg:  "id is required",
 		},
 		{
 			name: "empty email",
@@ -109,7 +122,7 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "user email is required",
+			errMsg:  "email is required",
 		},
 		{
 			name: "invalid email format",
@@ -121,7 +134,7 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "invalid email format",
+			errMsg:  "invalid format for email, expected: valid email address",
 		},
 		{
 			name: "empty name",
@@ -133,13 +146,13 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "user name is required",
+			errMsg:  "name is required",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.user.Validate()
+			err := tt.user.Validate(context.Background())
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -162,7 +175,7 @@ func TestUser_UpdateName(t *testing.T) {
 	originalUpdatedAt := user.UpdatedAt
 	newName := "New Name"
 
-	err := user.UpdateName(newName)
+	err := user.UpdateName(context.Background(), newName)
 	require.NoError(t, err)
 
 	assert.Equal(t, newName, user.Name)
@@ -180,16 +193,16 @@ func TestUser_UpdateName_Invalid(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		newName  string
-		wantErr  bool
-		errMsg   string
+		name    string
+		newName string
+		wantErr bool
+		errMsg  string
 	}{
 		{
 			name:    "empty name",
 			newName: "",
 			wantErr: true,
-			errMsg:  "name cannot be empty",
+			errMsg:  "name is required",
 		},
 		{
 			name:    "valid name",
@@ -200,7 +213,7 @@ func TestUser_UpdateName_Invalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := user.UpdateName(tt.newName)
+			err := user.UpdateName(context.Background(), tt.newName)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)

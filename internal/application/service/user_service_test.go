@@ -12,10 +12,22 @@ import (
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
 	"github.com/cctw-zed/wonder/internal/domain/user/mocks"
+	"github.com/cctw-zed/wonder/internal/infrastructure/config"
+	"github.com/cctw-zed/wonder/pkg/logger"
 	idMocks "github.com/cctw-zed/wonder/pkg/snowflake/id/mocks"
 )
 
 func TestUserService_Register(t *testing.T) {
+	// Initialize logger for tests
+	cfg := &config.Config{
+		Log: &config.LogConfig{
+			Level:       "debug",
+			Format:      "text",
+			ServiceName: "wonder-test",
+		},
+	}
+	logger.InitializeGlobalLogger(cfg)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -72,7 +84,7 @@ func TestUserService_Register(t *testing.T) {
 				// No mock expectations as validation should fail early
 			},
 			wantErr: true,
-			errMsg:  "invalid email: email is required",
+			errMsg:  "validation failed for field 'email': email is required",
 		},
 		{
 			name:     "invalid email format",
@@ -82,7 +94,7 @@ func TestUserService_Register(t *testing.T) {
 				// No mock expectations as validation should fail early
 			},
 			wantErr: true,
-			errMsg:  "invalid email: invalid email format",
+			errMsg:  "invalid format for email, expected: valid email address",
 		},
 		{
 			name:     "user already exists",
@@ -100,7 +112,7 @@ func TestUserService_Register(t *testing.T) {
 					Times(1)
 			},
 			wantErr: true,
-			errMsg:  "email already exists",
+			errMsg:  "email 'existing@example.com' already exists",
 		},
 		{
 			name:     "repository create fails",
@@ -126,7 +138,7 @@ func TestUserService_Register(t *testing.T) {
 					Times(1)
 			},
 			wantErr: true,
-			errMsg:  "failed to create user: database error",
+			errMsg:  "database error",
 		},
 	}
 
@@ -186,25 +198,25 @@ func TestUserService_validateEmail(t *testing.T) {
 			name:    "invalid email format",
 			email:   "invalid-email",
 			wantErr: true,
-			errMsg:  "invalid email format",
+			errMsg:  "invalid format for email, expected: valid email address",
 		},
 		{
 			name:    "email without domain",
 			email:   "test@",
 			wantErr: true,
-			errMsg:  "invalid email format",
+			errMsg:  "invalid format for email, expected: valid email address",
 		},
 		{
 			name:    "email without local part",
 			email:   "@example.com",
 			wantErr: true,
-			errMsg:  "invalid email format",
+			errMsg:  "invalid format for email, expected: valid email address",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := service.validateEmail(tt.email)
+			err := service.validateEmail(context.Background(), tt.email)
 
 			if tt.wantErr {
 				require.Error(t, err)

@@ -17,7 +17,7 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME) 
 .DEFAULT_GOAL := build
 
 # Phony targets
-.PHONY: build build-all test run run-test clean git-commit git-status help
+.PHONY: build build-all test run run-test clean kill help
 
 # Create bin directory
 $(BIN_DIR):
@@ -60,6 +60,15 @@ clean:
 	@rm -rf $(BIN_DIR)/*
 	@echo "✅ Clean completed!"
 
+# Kill wonder server processes
+kill:
+	@echo "🔫 Killing wonder server processes..."
+	@pkill -f "wonder" 2>/dev/null || true
+	@pkill -f "go run.*cmd/server" 2>/dev/null || true
+	@pkill -f "make run" 2>/dev/null || true
+	@pkill -f "bin/server" 2>/dev/null || true
+	@echo "✅ Wonder processes terminated!"
+
 # Show help
 help:
 	@echo "Wonder Project Makefile"
@@ -71,6 +80,7 @@ help:
 	@echo "  run        Run server in development mode"
 	@echo "  run-test   Run server in testing mode"
 	@echo "  clean      Clean build artifacts"
+	@echo "  kill       Kill all wonder server processes"
 	@echo "  help       Show this help message"
 	@echo ""
 	@echo "Examples:"

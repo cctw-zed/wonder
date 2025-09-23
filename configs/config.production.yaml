@@ -33,6 +33,12 @@ log:
   output: "file"
   enable_file: true
   file_path: "/var/log/wonder/app.log"
+  service_name: "wonder"
+  enable_tracing: true
+  max_file_size: 500  # MB
+  max_backups: 10
+  max_age: 30  # days
+  compress: true
 
 id:
   service_type: "${ID_SERVICE_TYPE}"

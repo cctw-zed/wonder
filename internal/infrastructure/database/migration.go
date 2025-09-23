@@ -47,12 +47,7 @@ func (m *Migrator) DropAll() error {
 
 // CreateIndexes creates additional database indexes
 func (m *Migrator) CreateIndexes() error {
-	// Create email index if not exists (GORM should handle this via uniqueIndex tag)
-	if !m.db.Migrator().HasIndex(&user.User{}, "email") {
-		if err := m.db.Migrator().CreateIndex(&user.User{}, "email"); err != nil {
-			return fmt.Errorf("failed to create email index: %w", err)
-		}
-	}
+	// Email index is handled by uniqueIndex tag in the model, skip manual creation
 
 	// Create created_at index for time-based queries
 	if !m.db.Migrator().HasIndex(&user.User{}, "created_at") {
