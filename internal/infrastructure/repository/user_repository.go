@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
+	wonderErrors "github.com/cctw-zed/wonder/pkg/errors"
 )
 
 type userRepository struct {
@@ -25,12 +27,14 @@ func NewUserRepository(db *gorm.DB) user.UserRepository {
 // Create creates a new user in the database
 func (r *userRepository) Create(ctx context.Context, u *user.User) error {
 	if u == nil {
-		return fmt.Errorf("user cannot be nil")
+		return wonderErrors.NewDatabaseError("create", "users", nil, false, map[string]interface{}{
+			"reason": "user cannot be nil",
+		})
 	}
 
-	// Validate user before creating
+	// Domain validation is handled by aggregate, but we double-check here
 	if err := u.Validate(); err != nil {
-		return fmt.Errorf("user validation failed: %w", err)
+		return err // Return the domain validation error directly
 	}
 
 	// Set timestamps if not already set
@@ -46,9 +50,15 @@ func (r *userRepository) Create(ctx context.Context, u *user.User) error {
 	if err := r.db.WithContext(ctx).Create(u).Error; err != nil {
 		// Check for unique constraint violation (email already exists)
 		if isDuplicateKeyError(err) {
-			return fmt.Errorf("user with email %s already exists", u.Email)
+			return wonderErrors.NewConflictError("user", "email already exists", "", map[string]interface{}{
+				"email": u.Email,
+			})
 		}
-		return fmt.Errorf("failed to create user: %w", err)
+		// Other database errors
+		return wonderErrors.NewDatabaseError("create", "users", err, isRetryableError(err), map[string]interface{}{
+			"user_id": u.ID,
+			"email":   u.Email,
+		})
 	}
 
 	return nil
@@ -57,16 +67,18 @@ func (r *userRepository) Create(ctx context.Context, u *user.User) error {
 // GetByID retrieves a user by ID
 func (r *userRepository) GetByID(ctx context.Context, id string) (*user.User, error) {
 	if id == "" {
-		return nil, fmt.Errorf("user ID cannot be empty")
+		return nil, wonderErrors.NewRequiredFieldError("id", id)
 	}
 
 	var u user.User
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&u).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return nil, nil // Return nil for not found (application layer will handle)
 		}
-		return nil, fmt.Errorf("failed to get user by ID: %w", err)
+		return nil, wonderErrors.NewDatabaseError("get_by_id", "users", err, isRetryableError(err), map[string]interface{}{
+			"user_id": id,
+		})
 	}
 
 	return &u, nil
@@ -75,16 +87,18 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*user.User, er
 // GetByEmail retrieves a user by email
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*user.User, error) {
 	if email == "" {
-		return nil, fmt.Errorf("email cannot be empty")
+		return nil, wonderErrors.NewRequiredFieldError("email", email)
 	}
 
 	var u user.User
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return nil, nil // Return nil for not found (application layer will handle)
 		}
-		return nil, fmt.Errorf("failed to get user by email: %w", err)
+		return nil, wonderErrors.NewDatabaseError("get_by_email", "users", err, isRetryableError(err), map[string]interface{}{
+			"email": email,
+		})
 	}
 
 	return &u, nil
@@ -152,24 +166,53 @@ func isDuplicateKeyError(err error) bool {
 	}
 
 	// PostgreSQL duplicate key error codes
-	errorStr := err.Error()
-	return contains(errorStr, "duplicate key value violates unique constraint") ||
-		contains(errorStr, "UNIQUE constraint failed") ||
-		contains(errorStr, "23505") // PostgreSQL unique violation error code
+	errorStr := strings.ToLower(err.Error())
+	return strings.Contains(errorStr, "duplicate key value violates unique constraint") ||
+		strings.Contains(errorStr, "unique constraint failed") ||
+		strings.Contains(errorStr, "23505") // PostgreSQL unique violation error code
 }
 
-// contains checks if a string contains a substring (case-insensitive)
-func contains(str, substr string) bool {
-	return len(str) >= len(substr) &&
-		(str == substr || len(substr) == 0 ||
-			anySubstring(str, substr))
-}
+// isRetryableError determines if a database error is retryable
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
 
-func anySubstring(str, substr string) bool {
-	for i := 0; i <= len(str)-len(substr); i++ {
-		if str[i:i+len(substr)] == substr {
+	errorStr := strings.ToLower(err.Error())
+
+	// Network or connection errors (retryable)
+	retryablePatterns := []string{
+		"connection refused",
+		"connection reset",
+		"timeout",
+		"deadlock",
+		"lock timeout",
+		"temporary failure",
+		"connection lost",
+		"server is not available",
+	}
+
+	for _, pattern := range retryablePatterns {
+		if strings.Contains(errorStr, pattern) {
 			return true
 		}
 	}
-	return false
+
+	// Non-retryable errors
+	nonRetryablePatterns := []string{
+		"syntax error",
+		"permission denied",
+		"constraint violation",
+		"invalid",
+		"malformed",
+	}
+
+	for _, pattern := range nonRetryablePatterns {
+		if strings.Contains(errorStr, pattern) {
+			return false
+		}
+	}
+
+	// Default to retryable for unknown database errors
+	return true
 }

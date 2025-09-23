@@ -140,6 +140,100 @@ This is a Go project using standard Go toolchain.
 - **Dependencies**: `source .envrc && go mod tidy`
 - **Add dependency**: `source .envrc && go get <package>`
 
+## 🚨 Code Change Verification Protocol
+
+**CRITICAL**: When making ANY code changes, you MUST follow this verification protocol to avoid breaking changes:
+
+### 1. Pre-Change Analysis
+Before making any code changes:
+- **Identify Impact Scope**: List all files that might be affected by the change
+- **Locate Related Tests**: Find all test files that test the code being changed
+- **Check Dependencies**: Identify which other modules/packages depend on the changed code
+- **Review Interfaces**: If changing interfaces, find all implementations and usages
+
+### 2. Change Implementation Process
+When implementing changes:
+- **Make Incremental Changes**: Change one logical unit at a time
+- **Update Related Code**: Immediately update all affected code (constructors, method calls, etc.)
+- **Update Tests Simultaneously**: Update test cases as you change the production code
+- **Maintain API Contracts**: If changing public interfaces, update all callers
+- **Constants First**: Define constants before using values, avoid magic strings/numbers from day one
+
+### 3. Mandatory Verification Steps
+After EVERY code change, you MUST run these commands in order:
+
+```bash
+# 1. Verify compilation
+source .envrc && go build ./...
+# If compilation fails, fix ALL errors before proceeding
+
+# 2. Run specific affected tests
+source .envrc && go test ./path/to/changed/package/...
+# If tests fail, fix ALL test failures before proceeding
+
+# 3. Run full test suite
+source .envrc && go test ./...
+# If any tests fail, fix ALL failures or explicitly document why they're expected
+
+# 4. Verify code quality
+source .envrc && go vet ./...
+source .envrc && go fmt ./...
+```
+
+### 4. Change Documentation Requirements
+For every significant change:
+- **Update Interface Documentation**: Update comments for changed interfaces
+- **Update Error Messages**: If changing error handling, update all related error message tests
+- **Update Status**: Record changes in `docs/status.md`
+- **Update Architecture**: If changing structure, update `docs/architecture.mermaid`
+
+### 5. Rollback Protocol
+If verification fails and cannot be immediately fixed:
+- **Document the Issue**: Record what broke and why in `docs/status.md`
+- **Consider Rollback**: If the change is extensive, consider reverting to the last working state
+- **Create Incremental Plan**: Break the change into smaller, testable increments
+
+### ⚠️ Common Pitfalls to Avoid
+
+Based on ERROR-001 experience:
+
+1. **Interface Changes Without Implementation Updates**:
+   - ❌ BAD: Change method signature but forget to update all implementations
+   - ✅ GOOD: Use IDE/tools to find all implementations and update them together
+
+2. **Error System Changes Without Test Updates**:
+   - ❌ BAD: Change error message format but leave old test assertions
+   - ✅ GOOD: Update error tests immediately when changing error behavior
+
+3. **Incomplete Compilation Verification**:
+   - ❌ BAD: Only test changed package, miss dependencies
+   - ✅ GOOD: Always run `go build ./...` to verify entire codebase
+
+4. **Partial Test Updates**:
+   - ❌ BAD: Update some tests but leave others failing
+   - ✅ GOOD: Update ALL affected tests or document expected failures
+
+5. **Hardcoded Constants vs Defined Constants**:
+   - ❌ BAD: Use magic strings/numbers in code (`"VALIDATION_ERROR"`, `500`, etc.)
+   - ✅ GOOD: Define constants first, then use them (`errors.CodeValidationError`, `http.StatusInternalServerError`)
+   - **Principle**: Always prefer constants from day one to avoid expensive refactoring later
+
+### 📋 Change Checklist Template
+
+For every significant code change, use this checklist:
+
+- [ ] Identified all files that will be affected
+- [ ] Located and reviewed all related test files
+- [ ] Made changes incrementally with immediate verification
+- [ ] Updated all affected implementations/callers
+- [ ] Updated all related test cases
+- [ ] Verified: No hardcoded constants used (prefer defined constants)
+- [ ] Verified: `go build ./...` passes
+- [ ] Verified: `go test ./...` passes (or documented expected failures)
+- [ ] Verified: `go vet ./...` passes
+- [ ] Updated documentation and comments
+- [ ] Updated `docs/status.md` with change summary
+
 ## 🎯 Current Focus and Task Management
 
 **Always check `docs/tasks/tasks.md` for the latest priorities and active tasks.**
