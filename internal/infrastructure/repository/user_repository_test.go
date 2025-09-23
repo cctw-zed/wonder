@@ -11,10 +11,22 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
+	"github.com/cctw-zed/wonder/internal/infrastructure/config"
 	"github.com/cctw-zed/wonder/internal/testutil/builder"
+	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func setupTestDB(t *testing.T) *gorm.DB {
+	// Initialize logger factory for tests
+	cfg := &config.Config{
+		Log: &config.LogConfig{
+			Level:       "debug",
+			Format:      "text",
+			ServiceName: "wonder-test",
+		},
+	}
+	logger.InitializeGlobalLogger(cfg)
+
 	// Skip integration tests if no test database is available
 	dsn := "host=localhost port=5432 user=test password=test dbname=wonder_test sslmode=disable timezone=UTC"
 
@@ -58,7 +70,7 @@ func TestUserRepository_Create(t *testing.T) {
 			name:    "nil user",
 			user:    nil,
 			wantErr: true,
-			errMsg:  "user cannot be nil",
+			errMsg:  "database error in operation 'create' on table 'users'",
 		},
 		{
 			name: "invalid user - empty ID",
@@ -68,7 +80,7 @@ func TestUserRepository_Create(t *testing.T) {
 				WithName("Test User").
 				Build(),
 			wantErr: true,
-			errMsg:  "user validation failed",
+			errMsg:  "validation failed for field",
 		},
 		{
 			name: "invalid user - invalid email",
@@ -78,7 +90,7 @@ func TestUserRepository_Create(t *testing.T) {
 				WithName("Test User").
 				Build(),
 			wantErr: true,
-			errMsg:  "user validation failed",
+			errMsg:  "validation failed for field",
 		},
 		{
 			name: "duplicate email",
@@ -149,7 +161,7 @@ func TestUserRepository_GetByID(t *testing.T) {
 			id:      "",
 			exists:  false,
 			wantErr: true,
-			errMsg:  "user ID cannot be empty",
+			errMsg:  "validation failed for field 'id': id is required",
 		},
 	}
 
@@ -215,7 +227,7 @@ func TestUserRepository_GetByEmail(t *testing.T) {
 			email:   "",
 			exists:  false,
 			wantErr: true,
-			errMsg:  "email cannot be empty",
+			errMsg:  "validation failed for field 'email': email is required",
 		},
 	}
 
@@ -311,7 +323,7 @@ func TestUserRepository_Update(t *testing.T) {
 				return &u
 			},
 			wantErr: true,
-			errMsg:  "user validation failed",
+			errMsg:  "validation failed for field",
 		},
 	}
 

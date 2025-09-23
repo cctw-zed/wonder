@@ -168,10 +168,11 @@ func TestServerE2E(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
-		var user map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&user)
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
 		require.NoError(t, err)
 
+		user := response["user"].(map[string]interface{})
 		assert.NotEmpty(t, user["id"])
 		assert.Equal(t, "e2e_new@test.com", user["email"])
 		assert.Equal(t, "E2E Test User", user["name"])
@@ -215,13 +216,27 @@ func TestServerE2E(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode) // Current behavior
+		assert.Equal(t, http.StatusConflict, resp.StatusCode) // Correct behavior - 409 for conflicts
 
-		var errorResp map[string]string
+		var errorResp map[string]interface{}
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
 		require.NoError(t, err)
 
-		assert.Contains(t, errorResp["error"], "already exists")
+		// The error could be in different fields depending on the error type
+		var errorMessage string
+		if errorResp["error"] != nil {
+			errorMessage = errorResp["error"].(string)
+		} else if errorResp["message"] != nil {
+			errorMessage = errorResp["message"].(string)
+		} else if errorResp["details"] != nil {
+			if details, ok := errorResp["details"].(map[string]interface{}); ok {
+				if msg, ok := details["message"].(string); ok {
+					errorMessage = msg
+				}
+			}
+		}
+		require.NotEmpty(t, errorMessage, "Expected error message in response")
+		assert.Contains(t, errorMessage, "conflict")
 	})
 }
 

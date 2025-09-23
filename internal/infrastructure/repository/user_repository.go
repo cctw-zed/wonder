@@ -11,6 +11,7 @@ import (
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
 	wonderErrors "github.com/cctw-zed/wonder/pkg/errors"
+	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 type userRepository struct {
@@ -26,14 +27,28 @@ func NewUserRepository(db *gorm.DB) user.UserRepository {
 
 // Create creates a new user in the database
 func (r *userRepository) Create(ctx context.Context, u *user.User) error {
+	infraLogger := logger.NewInfrastructureLogger(logger.NewLogger())
+	startTime := time.Now()
+
 	if u == nil {
+		infraLogger.Error(ctx, "User creation failed: user cannot be nil")
 		return wonderErrors.NewDatabaseError("create", "users", nil, false, map[string]interface{}{
 			"reason": "user cannot be nil",
 		})
 	}
 
+	infraLogger.Debug(ctx, "Starting user creation in database",
+		logger.String("user_id", u.ID),
+		logger.String("email", u.Email),
+	)
+
 	// Domain validation is handled by aggregate, but we double-check here
-	if err := u.Validate(); err != nil {
+	if err := u.Validate(ctx); err != nil {
+		infraLogger.LogDatabaseOperation(ctx, "CREATE", "users", time.Since(startTime), 0,
+			logger.String("user_id", u.ID),
+			logger.String("error", err.Error()),
+			logger.String("phase", "validation"),
+		)
 		return err // Return the domain validation error directly
 	}
 
@@ -50,16 +65,39 @@ func (r *userRepository) Create(ctx context.Context, u *user.User) error {
 	if err := r.db.WithContext(ctx).Create(u).Error; err != nil {
 		// Check for unique constraint violation (email already exists)
 		if isDuplicateKeyError(err) {
+			infraLogger.LogDatabaseOperation(ctx, "CREATE", "users", time.Since(startTime), 0,
+				logger.String("user_id", u.ID),
+				logger.String("email", u.Email),
+				logger.String("error", "duplicate key violation"),
+			)
 			return wonderErrors.NewConflictError("user", "email already exists", "", map[string]interface{}{
 				"email": u.Email,
 			})
 		}
 		// Other database errors
+		infraLogger.LogDatabaseOperation(ctx, "CREATE", "users", time.Since(startTime), 0,
+			logger.String("user_id", u.ID),
+			logger.String("email", u.Email),
+			logger.String("error", err.Error()),
+			logger.Bool("retryable", isRetryableError(err)),
+		)
 		return wonderErrors.NewDatabaseError("create", "users", err, isRetryableError(err), map[string]interface{}{
 			"user_id": u.ID,
 			"email":   u.Email,
 		})
 	}
+
+	// Log successful creation
+	infraLogger.LogDatabaseOperation(ctx, "CREATE", "users", time.Since(startTime), 1,
+		logger.String("user_id", u.ID),
+		logger.String("email", u.Email),
+	)
+
+	infraLogger.Info(ctx, "User created successfully in database",
+		logger.String("user_id", u.ID),
+		logger.String("email", u.Email),
+		logger.Duration("duration", time.Since(startTime)),
+	)
 
 	return nil
 }
@@ -86,7 +124,17 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*user.User, er
 
 // GetByEmail retrieves a user by email
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*user.User, error) {
+	infraLogger := logger.NewInfrastructureLogger(logger.NewLogger())
+	startTime := time.Now()
+
+	infraLogger.Debug(ctx, "Querying user by email",
+		logger.String("email", email),
+	)
+
 	if email == "" {
+		infraLogger.LogDatabaseOperation(ctx, "SELECT", "users", time.Since(startTime), 0,
+			logger.String("error", "empty email"),
+		)
 		return nil, wonderErrors.NewRequiredFieldError("email", email)
 	}
 
@@ -94,12 +142,27 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*user.Us
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			infraLogger.LogDatabaseOperation(ctx, "SELECT", "users", time.Since(startTime), 0,
+				logger.String("email", email),
+				logger.String("result", "not_found"),
+			)
 			return nil, nil // Return nil for not found (application layer will handle)
 		}
+		infraLogger.LogDatabaseOperation(ctx, "SELECT", "users", time.Since(startTime), 0,
+			logger.String("email", email),
+			logger.String("error", err.Error()),
+			logger.Bool("retryable", isRetryableError(err)),
+		)
 		return nil, wonderErrors.NewDatabaseError("get_by_email", "users", err, isRetryableError(err), map[string]interface{}{
 			"email": email,
 		})
 	}
+
+	// Log successful query
+	infraLogger.LogDatabaseOperation(ctx, "SELECT", "users", time.Since(startTime), 1,
+		logger.String("email", email),
+		logger.String("user_id", u.ID),
+	)
 
 	return &u, nil
 }
@@ -115,7 +178,7 @@ func (r *userRepository) Update(ctx context.Context, u *user.User) error {
 	}
 
 	// Validate user before updating
-	if err := u.Validate(); err != nil {
+	if err := u.Validate(ctx); err != nil {
 		return fmt.Errorf("user validation failed: %w", err)
 	}
 

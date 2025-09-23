@@ -42,11 +42,17 @@ type ServerConfig struct {
 
 // LogConfig represents logging configuration
 type LogConfig struct {
-	Level      string `yaml:"level" mapstructure:"level" env:"LOG_LEVEL"`
-	Format     string `yaml:"format" mapstructure:"format" env:"LOG_FORMAT"`
-	Output     string `yaml:"output" mapstructure:"output" env:"LOG_OUTPUT"`
-	EnableFile bool   `yaml:"enable_file" mapstructure:"enable_file" env:"LOG_ENABLE_FILE"`
-	FilePath   string `yaml:"file_path" mapstructure:"file_path" env:"LOG_FILE_PATH"`
+	Level         string `yaml:"level" mapstructure:"level" env:"LOG_LEVEL"`
+	Format        string `yaml:"format" mapstructure:"format" env:"LOG_FORMAT"`
+	Output        string `yaml:"output" mapstructure:"output" env:"LOG_OUTPUT"`
+	EnableFile    bool   `yaml:"enable_file" mapstructure:"enable_file" env:"LOG_ENABLE_FILE"`
+	FilePath      string `yaml:"file_path" mapstructure:"file_path" env:"LOG_FILE_PATH"`
+	ServiceName   string `yaml:"service_name" mapstructure:"service_name" env:"LOG_SERVICE_NAME"`
+	EnableTracing bool   `yaml:"enable_tracing" mapstructure:"enable_tracing" env:"LOG_ENABLE_TRACING"`
+	MaxFileSize   int    `yaml:"max_file_size" mapstructure:"max_file_size" env:"LOG_MAX_FILE_SIZE"`
+	MaxBackups    int    `yaml:"max_backups" mapstructure:"max_backups" env:"LOG_MAX_BACKUPS"`
+	MaxAge        int    `yaml:"max_age" mapstructure:"max_age" env:"LOG_MAX_AGE"`
+	Compress      bool   `yaml:"compress" mapstructure:"compress" env:"LOG_COMPRESS"`
 }
 
 // IDConfig represents ID generation configuration
@@ -98,11 +104,17 @@ func DefaultConfig() *Config {
 		},
 		Database: DefaultDatabaseConfig(),
 		Log: &LogConfig{
-			Level:      "info",
-			Format:     "json",
-			Output:     "stdout",
-			EnableFile: false,
-			FilePath:   "logs/app.log",
+			Level:         "info",
+			Format:        "json",
+			Output:        "stdout",
+			EnableFile:    false,
+			FilePath:      "logs/app.log",
+			ServiceName:   "wonder",
+			EnableTracing: true,
+			MaxFileSize:   100, // MB
+			MaxBackups:    3,
+			MaxAge:        28, // days
+			Compress:      true,
 		},
 		ID: &IDConfig{
 			ServiceType: "user",
@@ -229,6 +241,22 @@ func (c *LogConfig) Validate() error {
 
 	if c.EnableFile && c.FilePath == "" {
 		return fmt.Errorf("log file_path is required when enable_file is true")
+	}
+
+	if c.ServiceName == "" {
+		return fmt.Errorf("log service_name is required")
+	}
+
+	if c.MaxFileSize <= 0 {
+		return fmt.Errorf("log max_file_size must be positive")
+	}
+
+	if c.MaxBackups < 0 {
+		return fmt.Errorf("log max_backups must be non-negative")
+	}
+
+	if c.MaxAge < 0 {
+		return fmt.Errorf("log max_age must be non-negative")
 	}
 
 	return nil

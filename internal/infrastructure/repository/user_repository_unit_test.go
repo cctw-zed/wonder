@@ -8,9 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
+	"github.com/cctw-zed/wonder/internal/infrastructure/config"
+	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func TestUserRepository_InputValidation(t *testing.T) {
+	// Initialize logger factory for tests
+	cfg := &config.Config{
+		Log: &config.LogConfig{
+			Level:       "debug",
+			Format:      "text",
+			ServiceName: "wonder-test",
+		},
+	}
+	logger.InitializeGlobalLogger(cfg)
+
 	// Create repository with nil db to test parameter validation
 	repo := &userRepository{db: nil}
 	ctx := context.Background()
@@ -24,7 +36,7 @@ func TestUserRepository_InputValidation(t *testing.T) {
 			{
 				name:    "nil user",
 				user:    nil,
-				wantErr: "user cannot be nil",
+				wantErr: "database error in operation 'create' on table 'users'",
 			},
 		}
 
@@ -46,7 +58,7 @@ func TestUserRepository_InputValidation(t *testing.T) {
 			{
 				name:    "empty ID",
 				id:      "",
-				wantErr: "user ID cannot be empty",
+				wantErr: "validation failed for field 'id': id is required",
 			},
 		}
 
@@ -68,7 +80,7 @@ func TestUserRepository_InputValidation(t *testing.T) {
 			{
 				name:    "empty email",
 				email:   "",
-				wantErr: "email cannot be empty",
+				wantErr: "validation failed for field 'email': email is required",
 			},
 		}
 

@@ -311,11 +311,13 @@ func TestLogConfig_Validate(t *testing.T) {
 		{
 			name: "valid config",
 			config: &LogConfig{
-				Level:      "info",
-				Format:     "json",
-				Output:     "stdout",
-				EnableFile: false,
-				FilePath:   "logs/app.log",
+				Level:       "info",
+				Format:      "json",
+				Output:      "stdout",
+				EnableFile:  false,
+				FilePath:    "logs/app.log",
+				ServiceName: "test-service",
+				MaxFileSize: 100,
 			},
 			wantErr: false,
 		},

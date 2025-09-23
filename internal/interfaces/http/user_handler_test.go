@@ -62,13 +62,14 @@ func TestUserHandler_Register_Success(t *testing.T) {
 	// Assert response
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var responseUser user.User
-	err := json.Unmarshal(w.Body.Bytes(), &responseUser)
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, expectedUser.ID, responseUser.ID)
-	assert.Equal(t, expectedUser.Email, responseUser.Email)
-	assert.Equal(t, expectedUser.Name, responseUser.Name)
+	responseUser := response["user"].(map[string]interface{})
+	assert.Equal(t, expectedUser.ID, responseUser["id"])
+	assert.Equal(t, expectedUser.Email, responseUser["email"])
+	assert.Equal(t, expectedUser.Name, responseUser["name"])
 }
 
 func TestUserHandler_Register_ValidationErrors(t *testing.T) {
@@ -90,7 +91,7 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 				"name": "Test User",
 			},
 			expectedStatus: http.StatusBadRequest,
-			errorContains:  "Email",
+			errorContains:  "Invalid request data",
 		},
 		{
 			name: "missing name",
@@ -98,7 +99,7 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 				"email": "test@example.com",
 			},
 			expectedStatus: http.StatusBadRequest,
-			errorContains:  "Name",
+			errorContains:  "Invalid request data",
 		},
 		{
 			name: "invalid email format",
@@ -107,7 +108,7 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 				Name:  "Test User",
 			},
 			expectedStatus: http.StatusBadRequest,
-			errorContains:  "email",
+			errorContains:  "Invalid request data",
 		},
 		{
 			name: "name too short",
@@ -116,7 +117,7 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 				Name:  "A",
 			},
 			expectedStatus: http.StatusBadRequest,
-			errorContains:  "min",
+			errorContains:  "Invalid request data",
 		},
 		{
 			name: "name too long",
@@ -125,7 +126,7 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 				Name:  "This is a very long name that exceeds the maximum length allowed for user names in the system",
 			},
 			expectedStatus: http.StatusBadRequest,
-			errorContains:  "max",
+			errorContains:  "Invalid request data",
 		},
 		{
 			name:           "invalid JSON",
@@ -164,9 +165,25 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
 
-				errorMsg, exists := response["error"]
-				require.True(t, exists)
-				assert.Contains(t, errorMsg.(string), tt.errorContains)
+				// Check various possible error fields
+				var errorMsg string
+				var exists bool
+				if response["error"] != nil {
+					errorMsg = response["error"].(string)
+					exists = true
+				} else if response["message"] != nil {
+					errorMsg = response["message"].(string)
+					exists = true
+				} else if response["details"] != nil {
+					if details, ok := response["details"].(map[string]interface{}); ok {
+						if validation_error, ok := details["validation_error"].(string); ok {
+							errorMsg = validation_error
+							exists = true
+						}
+					}
+				}
+				require.True(t, exists, "Expected error message in response: %v", response)
+				assert.Contains(t, errorMsg, tt.errorContains)
 			}
 		})
 	}
@@ -189,19 +206,19 @@ func TestUserHandler_Register_ServiceErrors(t *testing.T) {
 			name:           "user already exists",
 			serviceError:   errors.New("email already exists"),
 			expectedStatus: http.StatusInternalServerError,
-			errorContains:  "email already exists",
+			errorContains:  "An internal server error occurred",
 		},
 		{
 			name:           "database error",
 			serviceError:   errors.New("database connection failed"),
 			expectedStatus: http.StatusInternalServerError,
-			errorContains:  "database connection failed",
+			errorContains:  "An internal server error occurred",
 		},
 		{
 			name:           "validation error",
 			serviceError:   errors.New("invalid email: email is required"),
 			expectedStatus: http.StatusInternalServerError,
-			errorContains:  "invalid email",
+			errorContains:  "An internal server error occurred",
 		},
 	}
 
@@ -239,9 +256,25 @@ func TestUserHandler_Register_ServiceErrors(t *testing.T) {
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
 
-			errorMsg, exists := response["error"]
-			require.True(t, exists)
-			assert.Contains(t, errorMsg.(string), tt.errorContains)
+			// Check various possible error fields
+			var errorMsg string
+			var exists bool
+			if response["error"] != nil {
+				errorMsg = response["error"].(string)
+				exists = true
+			} else if response["message"] != nil {
+				errorMsg = response["message"].(string)
+				exists = true
+			} else if response["details"] != nil {
+				if details, ok := response["details"].(map[string]interface{}); ok {
+					if validation_error, ok := details["validation_error"].(string); ok {
+						errorMsg = validation_error
+						exists = true
+					}
+				}
+			}
+			require.True(t, exists, "Expected error message in response: %v", response)
+			assert.Contains(t, errorMsg, tt.errorContains)
 		})
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/cctw-zed/wonder/internal/infrastructure/database"
 	"github.com/cctw-zed/wonder/internal/infrastructure/repository"
 	"github.com/cctw-zed/wonder/internal/interfaces/http"
+	"github.com/cctw-zed/wonder/pkg/logger"
 	"github.com/cctw-zed/wonder/pkg/snowflake/id"
 )
 
@@ -19,6 +20,7 @@ type Container struct {
 	Config        *config.Config
 	UserHandler   *http.UserHandler
 	Database      *database.Connection
+	Logger        logger.Logger
 	nodeAllocator id.NodeIDAllocator // 节点ID分配器，用于优雅关闭时释放资源
 }
 
@@ -39,6 +41,10 @@ func NewContainerForEnvironment(ctx context.Context, environment string) (*Conta
 		return nil, fmt.Errorf("failed to load config for environment %s: %w", environment, err)
 	}
 
+	// Initialize global logging factory
+	loggerFactory := logger.InitializeGlobalLogger(cfg)
+	appLogger := loggerFactory.NewLogger().WithComponent("container")
+
 	// 检测ID分配策略
 	allocator := createNodeIDAllocator(ctx, cfg)
 
@@ -74,10 +80,16 @@ func NewContainerForEnvironment(ctx context.Context, environment string) (*Conta
 	userService := service.NewUserService(userRepo, idGen)
 	userHandler := http.NewUserHandler(userService)
 
+	appLogger.Info(ctx, "Container initialized successfully",
+		logger.String("service_name", cfg.App.Name),
+		logger.String("version", cfg.App.Version),
+	)
+
 	return &Container{
 		Config:        cfg,
 		UserHandler:   userHandler,
 		Database:      dbConn,
+		Logger:        appLogger,
 		nodeAllocator: allocator,
 	}, nil
 }
@@ -97,6 +109,10 @@ func NewContainerWithConfig(ctx context.Context, configPath string) (*Container,
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Initialize global logging factory
+	loggerFactory := logger.InitializeGlobalLogger(cfg)
+	appLogger := loggerFactory.NewLogger().WithComponent("container")
+
 	// 检测ID分配策略
 	allocator := createNodeIDAllocator(ctx, cfg)
 
@@ -132,10 +148,16 @@ func NewContainerWithConfig(ctx context.Context, configPath string) (*Container,
 	userService := service.NewUserService(userRepo, idGen)
 	userHandler := http.NewUserHandler(userService)
 
+	appLogger.Info(ctx, "Container initialized successfully",
+		logger.String("service_name", cfg.App.Name),
+		logger.String("version", cfg.App.Version),
+	)
+
 	return &Container{
 		Config:        cfg,
 		UserHandler:   userHandler,
 		Database:      dbConn,
+		Logger:        appLogger,
 		nodeAllocator: allocator,
 	}, nil
 }
