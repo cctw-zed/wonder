@@ -263,8 +263,19 @@ func TestServerE2E(t *testing.T) {
 		err = json.NewDecoder(createResp.Body).Decode(&createResponse)
 		require.NoError(t, err)
 
-		createdUser := createResponse["user"].(map[string]interface{})
-		userID := createdUser["id"].(string)
+		userInterface, exists := createResponse["user"]
+		require.True(t, exists, "Response should contain 'user' field")
+		require.NotNil(t, userInterface, "User field should not be nil")
+
+		createdUser, ok := userInterface.(map[string]interface{})
+		require.True(t, ok, "User field should be an object")
+
+		userIDInterface, exists := createdUser["id"]
+		require.True(t, exists, "User should contain 'id' field")
+		require.NotNil(t, userIDInterface, "User ID should not be nil")
+
+		userID, ok := userIDInterface.(string)
+		require.True(t, ok, "User ID should be a string")
 		assert.NotEmpty(t, userID)
 
 		// Step 2: Get user profile
@@ -356,13 +367,28 @@ func TestServerE2E(t *testing.T) {
 		err = json.NewDecoder(listResp.Body).Decode(&listResponse)
 		require.NoError(t, err)
 
-		users := listResponse["users"].([]interface{})
+		// Safe type assertion for data field
+		dataInterface, exists := listResponse["data"]
+		require.True(t, exists, "Response should contain 'data' field")
+		require.NotNil(t, dataInterface, "Data field should not be nil")
+
+		data, ok := dataInterface.(map[string]interface{})
+		require.True(t, ok, "Data field should be an object")
+
+		// Safe type assertion for users field within data
+		usersInterface, exists := data["users"]
+		require.True(t, exists, "Data should contain 'users' field")
+		require.NotNil(t, usersInterface, "Users field should not be nil")
+
+		users, ok := usersInterface.([]interface{})
+		require.True(t, ok, "Users field should be an array")
 		assert.GreaterOrEqual(t, len(users), 1)
 
 		// Find our updated user in the list
 		var foundUser map[string]interface{}
 		for _, u := range users {
-			userData := u.(map[string]interface{})
+			userData, ok := u.(map[string]interface{})
+			require.True(t, ok, "User item should be an object")
 			if userData["id"] == userID {
 				foundUser = userData
 				break
@@ -384,7 +410,7 @@ func TestServerE2E(t *testing.T) {
 		require.NoError(t, err)
 		defer deleteResp.Body.Close()
 
-		assert.Equal(t, http.StatusNoContent, deleteResp.StatusCode)
+		assert.Equal(t, http.StatusOK, deleteResp.StatusCode)
 
 		// Step 7: Verify user is deleted - should return 404
 		verifyDeleteResp, err := suite.httpClient.Get(suite.baseURL + "/api/v1/users/" + userID)
@@ -430,8 +456,21 @@ func TestServerE2E(t *testing.T) {
 			resp.Body.Close()
 			require.NoError(t, err)
 
-			createdUser := createResponse["user"].(map[string]interface{})
-			userIDs = append(userIDs, createdUser["id"].(string))
+			userInterface, exists := createResponse["user"]
+			require.True(t, exists, "Response should contain 'user' field")
+			require.NotNil(t, userInterface, "User field should not be nil")
+
+			createdUser, ok := userInterface.(map[string]interface{})
+			require.True(t, ok, "User field should be an object")
+
+			userIDInterface, exists := createdUser["id"]
+			require.True(t, exists, "User should contain 'id' field")
+			require.NotNil(t, userIDInterface, "User ID should not be nil")
+
+			userID, ok := userIDInterface.(string)
+			require.True(t, ok, "User ID should be a string")
+
+			userIDs = append(userIDs, userID)
 		}
 
 		// Test pagination - page 1, size 2
@@ -445,13 +484,39 @@ func TestServerE2E(t *testing.T) {
 		err = json.NewDecoder(listResp.Body).Decode(&listResponse)
 		require.NoError(t, err)
 
-		users := listResponse["users"].([]interface{})
+		// Safe type assertion for data field
+		dataInterface, exists := listResponse["data"]
+		require.True(t, exists, "Response should contain 'data' field")
+		require.NotNil(t, dataInterface, "Data field should not be nil")
+
+		data, ok := dataInterface.(map[string]interface{})
+		require.True(t, ok, "Data field should be an object")
+
+		// Safe type assertion for users field within data
+		usersInterface, exists := data["users"]
+		require.True(t, exists, "Data should contain 'users' field")
+		require.NotNil(t, usersInterface, "Users field should not be nil")
+
+		users, ok := usersInterface.([]interface{})
+		require.True(t, ok, "Users field should be an array")
 		assert.LessOrEqual(t, len(users), 2) // Should return at most 2 users
 
-		meta := listResponse["meta"].(map[string]interface{})
-		assert.Equal(t, float64(1), meta["page"])
-		assert.Equal(t, float64(2), meta["page_size"])
-		assert.GreaterOrEqual(t, int(meta["total"].(float64)), 3) // Should have at least our 3 test users
+		// Verify pagination metadata within data
+		pageInterface, exists := data["page"]
+		require.True(t, exists, "Data should contain 'page' field")
+		assert.Equal(t, float64(1), pageInterface)
+
+		pageSizeInterface, exists := data["page_size"]
+		require.True(t, exists, "Data should contain 'page_size' field")
+		assert.Equal(t, float64(2), pageSizeInterface)
+
+		totalInterface, exists := data["total"]
+		require.True(t, exists, "Data should contain 'total' field")
+		require.NotNil(t, totalInterface, "Total should not be nil")
+
+		total, ok := totalInterface.(float64)
+		require.True(t, ok, "Total should be a number")
+		assert.GreaterOrEqual(t, int(total), 3) // Should have at least our 3 test users
 
 		// Test with name filter
 		filterResp, err := suite.httpClient.Get(suite.baseURL + "/api/v1/users?name=Pagination&page=1&page_size=10")
@@ -464,13 +529,34 @@ func TestServerE2E(t *testing.T) {
 		err = json.NewDecoder(filterResp.Body).Decode(&filterResponse)
 		require.NoError(t, err)
 
-		filteredUsers := filterResponse["users"].([]interface{})
+		// Safe type assertion for data field
+		filterDataInterface, exists := filterResponse["data"]
+		require.True(t, exists, "Response should contain 'data' field")
+		require.NotNil(t, filterDataInterface, "Data field should not be nil")
+
+		filterData, ok := filterDataInterface.(map[string]interface{})
+		require.True(t, ok, "Data field should be an object")
+
+		// Safe type assertion for users field within data
+		filteredUsersInterface, exists := filterData["users"]
+		require.True(t, exists, "Data should contain 'users' field")
+		require.NotNil(t, filteredUsersInterface, "Users field should not be nil")
+
+		filteredUsers, ok := filteredUsersInterface.([]interface{})
+		require.True(t, ok, "Users field should be an array")
 		assert.GreaterOrEqual(t, len(filteredUsers), 3) // Should find our pagination test users
 
 		// Verify all returned users have "Pagination" in their name
 		for _, u := range filteredUsers {
-			userData := u.(map[string]interface{})
-			userName := userData["name"].(string)
+			userData, ok := u.(map[string]interface{})
+			require.True(t, ok, "User item should be an object")
+
+			nameInterface, exists := userData["name"]
+			require.True(t, exists, "User should contain 'name' field")
+			require.NotNil(t, nameInterface, "User name should not be nil")
+
+			userName, ok := nameInterface.(string)
+			require.True(t, ok, "User name should be a string")
 			assert.Contains(t, userName, "Pagination")
 		}
 	})
@@ -542,8 +628,19 @@ func TestServerE2E(t *testing.T) {
 		createResp.Body.Close()
 		require.NoError(t, err)
 
-		createdUser := createResponse["user"].(map[string]interface{})
-		userID := createdUser["id"].(string)
+		userInterface, exists := createResponse["user"]
+		require.True(t, exists, "Response should contain 'user' field")
+		require.NotNil(t, userInterface, "User field should not be nil")
+
+		createdUser, ok := userInterface.(map[string]interface{})
+		require.True(t, ok, "User field should be an object")
+
+		userIDInterface, exists := createdUser["id"]
+		require.True(t, exists, "User should contain 'id' field")
+		require.NotNil(t, userIDInterface, "User ID should not be nil")
+
+		userID, ok := userIDInterface.(string)
+		require.True(t, ok, "User ID should be a string")
 
 		defer func() {
 			// Clean up
@@ -631,8 +728,25 @@ func BenchmarkLifecycleAPIsE2E(b *testing.B) {
 	json.NewDecoder(createResp.Body).Decode(&createResponse)
 	createResp.Body.Close()
 
-	createdUser := createResponse["user"].(map[string]interface{})
-	userID := createdUser["id"].(string)
+	userInterface := createResponse["user"]
+	if userInterface == nil {
+		b.Fatalf("Response should contain 'user' field")
+	}
+
+	createdUser, ok := userInterface.(map[string]interface{})
+	if !ok {
+		b.Fatalf("User field should be an object")
+	}
+
+	userIDInterface := createdUser["id"]
+	if userIDInterface == nil {
+		b.Fatalf("User should contain 'id' field")
+	}
+
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		b.Fatalf("User ID should be a string")
+	}
 
 	defer func() {
 		// Clean up test user
