@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/cctw-zed/wonder/internal/container"
-	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 // Server represents the HTTP server
@@ -66,10 +65,9 @@ func (s *Server) GetAddr() string {
 func setupRouter(c *container.Container) *gin.Engine {
 	router := gin.New()
 
-	// Add our custom logging middleware instead of default Gin logger
-	router.Use(logger.HTTPLoggerMiddleware(c.Logger))
-	router.Use(logger.HTTPErrorMiddleware(c.Logger))
-	router.Use(logger.RecoveryMiddleware(c.Logger))
+	// Use default Gin middleware for now
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
 
 	// Add CORS middleware if enabled
 	if c.Config.Server.EnableCORS {

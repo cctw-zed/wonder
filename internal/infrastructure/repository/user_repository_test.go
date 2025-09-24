@@ -11,21 +11,13 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
-	"github.com/cctw-zed/wonder/internal/infrastructure/config"
 	"github.com/cctw-zed/wonder/internal/testutil/builder"
 	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func setupTestDB(t *testing.T) *gorm.DB {
-	// Initialize logger factory for tests
-	cfg := &config.Config{
-		Log: &config.LogConfig{
-			Level:       "debug",
-			Format:      "text",
-			ServiceName: "wonder-test",
-		},
-	}
-	logger.InitializeGlobalLogger(cfg)
+	// Initialize logger for tests
+	logger.Initialize()
 
 	// Skip integration tests if no test database is available
 	dsn := "host=localhost port=5432 user=test password=test dbname=wonder_test sslmode=disable timezone=UTC"

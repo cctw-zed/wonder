@@ -8,23 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
-	"github.com/cctw-zed/wonder/internal/infrastructure/config"
 	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func TestUserRepository_InputValidation(t *testing.T) {
-	// Initialize logger factory for tests
-	cfg := &config.Config{
-		Log: &config.LogConfig{
-			Level:       "debug",
-			Format:      "text",
-			ServiceName: "wonder-test",
-		},
-	}
-	logger.InitializeGlobalLogger(cfg)
+	// Initialize logger for tests
+	logger.Initialize()
 
 	// Create repository with nil db to test parameter validation
-	repo := &userRepository{db: nil}
+	// We need to bypass the constructor validation for this specific test
+	repo := &userRepository{
+		db:  nil,
+		log: logger.Get().WithLayer("infrastructure").WithComponent("user_repository"),
+	}
 	ctx := context.Background()
 
 	t.Run("Create method input validation", func(t *testing.T) {

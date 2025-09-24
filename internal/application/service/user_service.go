@@ -11,58 +11,50 @@ import (
 )
 
 type userService struct {
-	repo  user.UserRepository
+	repo user.UserRepository
 	idGen id.Generator
+	log  logger.Logger
 }
 
 func NewUserService(repo user.UserRepository, idGen id.Generator) user.UserService {
+	return NewUserServiceWithLogger(repo, idGen, logger.Get().WithLayer("application").WithComponent("user_service"))
+}
+
+func NewUserServiceWithLogger(repo user.UserRepository, idGen id.Generator, log logger.Logger) user.UserService {
+	if repo == nil {
+		panic("user repository cannot be nil")
+	}
+	if idGen == nil {
+		panic("ID generator cannot be nil")
+	}
+	if log == nil {
+		panic("logger cannot be nil")
+	}
+
 	return &userService{
 		repo:  repo,
 		idGen: idGen,
+		log:   log,
 	}
 }
 
 func (s *userService) Register(ctx context.Context, email, name string) (*user.User, error) {
-	appLogger := logger.NewApplicationLogger(logger.NewLogger())
-	startTime := time.Now()
-
-	// Log use case start
-	appLogger.Info(ctx, "Starting user registration use case",
-		logger.String("email", email),
-		logger.String("name", name),
-	)
+	s.log.Info(ctx, "registering user", "email", email, "name", name)
 
 	// Business rule validation
-	appLogger.LogServiceCall(ctx, "UserService", "validateEmail", time.Now())
 	if err := s.validateEmail(ctx, email); err != nil {
-		appLogger.LogUseCase(ctx, "RegisterUser", startTime, false,
-			logger.String("email", email),
-			logger.String("error", err.Error()),
-			logger.String("phase", "validation"),
-		)
-		return nil, err // Return domain validation error directly
+		s.log.Warn(ctx, "email validation failed", "error", err, "email", email)
+		return nil, err
 	}
 
 	// Check if email already exists
-	appLogger.Debug(ctx, "Checking if email already exists",
-		logger.String("email", email),
-	)
 	existingUser, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
-		appLogger.LogUseCase(ctx, "RegisterUser", startTime, false,
-			logger.String("email", email),
-			logger.String("error", err.Error()),
-			logger.String("phase", "email_check"),
-		)
-		// Repository layer should return proper infrastructure errors
+		s.log.Error(ctx, "failed to check existing email", "error", err, "email", email)
 		return nil, err
 	}
 	if existingUser != nil {
-		appLogger.LogUseCase(ctx, "RegisterUser", startTime, false,
-			logger.String("email", email),
-			logger.String("existing_user_id", existingUser.ID),
-			logger.String("phase", "duplicate_check"),
-		)
+		s.log.Warn(ctx, "email already exists", "email", email, "existing_user_id", existingUser.ID)
 		return nil, errors.NewDuplicateEntryError("user", "email", email, existingUser.ID)
 	}
 
@@ -76,85 +68,39 @@ func (s *userService) Register(ctx context.Context, email, name string) (*user.U
 		UpdatedAt: time.Now(),
 	}
 
-	appLogger.Debug(ctx, "Created user aggregate",
-		logger.String("user_id", userID),
-		logger.String("email", email),
-		logger.String("name", name),
-	)
+	if s.log.DebugEnabled() {
+		s.log.Debug(ctx, "created user aggregate", "user_id", userID, "email", email, "name", name)
+	}
 
 	// Validate the aggregate before persisting
 	if err := u.Validate(ctx); err != nil {
-		appLogger.LogUseCase(ctx, "RegisterUser", startTime, false,
-			logger.String("user_id", userID),
-			logger.String("email", email),
-			logger.String("error", err.Error()),
-			logger.String("phase", "aggregate_validation"),
-		)
-		return nil, err // Return domain validation error directly
-	}
-
-	// Persist the user
-	appLogger.Debug(ctx, "Persisting user to repository",
-		logger.String("user_id", userID),
-	)
-	if err := s.repo.Create(ctx, u); err != nil {
-		appLogger.LogUseCase(ctx, "RegisterUser", startTime, false,
-			logger.String("user_id", userID),
-			logger.String("email", email),
-			logger.String("error", err.Error()),
-			logger.String("phase", "persistence"),
-		)
-		// Repository layer should return proper infrastructure errors
+		s.log.Warn(ctx, "user aggregate validation failed", "error", err, "user_id", userID)
 		return nil, err
 	}
 
-	// Log successful registration
-	appLogger.LogUseCase(ctx, "RegisterUser", startTime, true,
-		logger.String("user_id", userID),
-		logger.String("email", email),
-		logger.String("name", name),
-	)
+	// Persist the user
+	if err := s.repo.Create(ctx, u); err != nil {
+		s.log.Error(ctx, "failed to persist user", "error", err, "user_id", userID)
+		return nil, err
+	}
 
-	appLogger.Info(ctx, "User registration completed successfully",
-		logger.String("user_id", userID),
-		logger.String("email", email),
-		logger.Duration("duration", time.Since(startTime)),
-	)
-
+	s.log.Info(ctx, "user registered successfully", "user_id", userID, "email", email)
 	return u, nil
 }
 
 func (s *userService) validateEmail(ctx context.Context, email string) error {
-	appLogger := logger.NewApplicationLogger(logger.NewLogger())
-
-	appLogger.Debug(ctx, "Validating email format",
-		logger.String("email", email),
-	)
-
-	var validationErrors []string
+	if s.log.DebugEnabled() {
+		s.log.Debug(ctx, "validating email", "email", email)
+	}
 
 	if email == "" {
-		validationErrors = append(validationErrors, "email is required")
-		appLogger.LogValidation(ctx, "email_required", false, validationErrors,
-			logger.String("field", "email"),
-		)
 		return errors.NewRequiredFieldError("email", email)
 	}
 
 	u := &user.User{Email: email}
 	if !u.IsEmailValid() {
-		validationErrors = append(validationErrors, "invalid email format")
-		appLogger.LogValidation(ctx, "email_format", false, validationErrors,
-			logger.String("field", "email"),
-			logger.String("value", email),
-		)
 		return errors.NewInvalidFormatError("email", email, "valid email address")
 	}
-
-	appLogger.LogValidation(ctx, "email_validation", true, nil,
-		logger.String("field", "email"),
-		logger.String("value", email),
-	)
 
 	return nil
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/cctw-zed/wonder/internal/application/service"
 	"github.com/cctw-zed/wonder/internal/domain/user"
-	"github.com/cctw-zed/wonder/internal/infrastructure/config"
 	"github.com/cctw-zed/wonder/internal/infrastructure/repository"
 	"github.com/cctw-zed/wonder/internal/testutil/builder"
 	"github.com/cctw-zed/wonder/pkg/logger"
@@ -25,14 +24,7 @@ import (
 // and data consistency across all operations
 func TestUserAggregateIntegrity(t *testing.T) {
 	// Initialize logger for tests
-	cfg := &config.Config{
-		Log: &config.LogConfig{
-			Level:       "debug",
-			Format:      "text",
-			ServiceName: "wonder-test",
-		},
-	}
-	logger.InitializeGlobalLogger(cfg)
+	logger.Initialize()
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
