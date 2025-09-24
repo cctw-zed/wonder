@@ -40,7 +40,7 @@ const (
 )
 
 // Performance-optimized field creators that avoid allocations
-func S(key, value string) interface{} { return key }
+func S(key, value string) interface{}  { return key }
 func Sv(key, value string) interface{} { return value }
 
 // KV creates a key-value pair

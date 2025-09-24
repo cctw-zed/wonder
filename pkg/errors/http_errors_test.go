@@ -123,11 +123,11 @@ func TestErrorMapper_MapInfrastructureErrors(t *testing.T) {
 	traceID := "test-trace-123"
 
 	tests := []struct {
-		name                 string
-		infrastructureError  errors.BaseError
-		expectedStatus       int
-		expectedCode         errors.ErrorCode
-		expectedRetryable    bool
+		name                string
+		infrastructureError errors.BaseError
+		expectedStatus      int
+		expectedCode        errors.ErrorCode
+		expectedRetryable   bool
 	}{
 		{
 			name:                "DatabaseError maps to 503 Service Unavailable",

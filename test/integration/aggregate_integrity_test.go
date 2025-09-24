@@ -122,7 +122,7 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			assert.Equal(t, "update@test.com", updated.Email) // Email unchanged
 			// Compare timestamps by truncating to microseconds to handle database precision
 			assert.True(t, originalCreatedAt.Truncate(time.Microsecond).Equal(updated.CreatedAt.Truncate(time.Microsecond))) // CreatedAt unchanged
-			assert.True(t, updated.UpdatedAt.After(originalUpdatedAt.Truncate(time.Microsecond))) // UpdatedAt changed
+			assert.True(t, updated.UpdatedAt.After(originalUpdatedAt.Truncate(time.Microsecond)))                            // UpdatedAt changed
 
 			// Verify entity still validates after update
 			err = updated.Validate(context.Background())

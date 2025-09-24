@@ -45,13 +45,13 @@ func (l *DefaultErrorLogger) LogError(ctx context.Context, err error, traceID st
 func (l *DefaultErrorLogger) LogErrorWithLevel(ctx context.Context, err error, level LogLevel, traceID string, metadata map[string]interface{}) {
 	// Create log entry with structured fields
 	logEntry := map[string]interface{}{
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-		"service":      l.serviceName,
-		"level":        string(level),
-		"trace_id":     traceID,
-		"error":        err.Error(),
-		"error_type":   l.getErrorType(err),
-		"retryable":    l.isRetryable(err),
+		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		"service":    l.serviceName,
+		"level":      string(level),
+		"trace_id":   traceID,
+		"error":      err.Error(),
+		"error_type": l.getErrorType(err),
+		"retryable":  l.isRetryable(err),
 	}
 
 	// Add error-specific details using the new classification system

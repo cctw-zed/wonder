@@ -26,10 +26,10 @@ const (
 // Application error codes
 const (
 	// Resource errors
-	CodeEntityNotFound  ErrorCode = "ENTITY_NOT_FOUND"
+	CodeEntityNotFound   ErrorCode = "ENTITY_NOT_FOUND"
 	CodeResourceConflict ErrorCode = "RESOURCE_CONFLICT"
-	CodeDuplicateEntry  ErrorCode = "DUPLICATE_ENTRY"
-	CodeResourceLocked  ErrorCode = "RESOURCE_LOCKED"
+	CodeDuplicateEntry   ErrorCode = "DUPLICATE_ENTRY"
+	CodeResourceLocked   ErrorCode = "RESOURCE_LOCKED"
 
 	// Authorization errors
 	CodeUnauthorized     ErrorCode = "UNAUTHORIZED"
@@ -54,9 +54,9 @@ const (
 	CodeTransactionRollback ErrorCode = "TRANSACTION_ROLLBACK"
 
 	// Network errors
-	CodeNetworkError      ErrorCode = "NETWORK_ERROR"
-	CodeConnectionRefused ErrorCode = "CONNECTION_REFUSED"
-	CodeConnectionTimeout ErrorCode = "CONNECTION_TIMEOUT"
+	CodeNetworkError       ErrorCode = "NETWORK_ERROR"
+	CodeConnectionRefused  ErrorCode = "CONNECTION_REFUSED"
+	CodeConnectionTimeout  ErrorCode = "CONNECTION_TIMEOUT"
 	CodeServiceUnavailable ErrorCode = "SERVICE_UNAVAILABLE"
 
 	// External service errors

@@ -2,16 +2,15 @@ package errors
 
 import "fmt"
 
-
 // DatabaseError represents database operation failures
 type DatabaseError struct {
-	ErrorCode     ErrorCode
-	Operation     string
-	Table         string
-	Query         string
-	Cause         error
-	IsRetryable   bool
-	Context       map[string]interface{}
+	ErrorCode   ErrorCode
+	Operation   string
+	Table       string
+	Query       string
+	Cause       error
+	IsRetryable bool
+	Context     map[string]interface{}
 }
 
 func (e DatabaseError) Error() string {

@@ -25,13 +25,39 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id string) error
+	List(ctx context.Context, req *ListUsersRequest) (*ListUsersResponse, error)
 }
 
 // UserService 用户领域服务接口
 type UserService interface {
 	Register(ctx context.Context, email, name string) (*User, error)
-	//GetProfile(ctx context.Context, id string) (*User, error)
-	//UpdateProfile(ctx context.Context, id, name string) error
+	GetProfile(ctx context.Context, id string) (*User, error)
+	UpdateProfile(ctx context.Context, id string, req *UpdateProfileRequest) (*User, error)
+	ListUsers(ctx context.Context, req *ListUsersRequest) (*ListUsersResponse, error)
+	DeleteUser(ctx context.Context, id string) error
+}
+
+// UpdateProfileRequest represents the request to update user profile
+type UpdateProfileRequest struct {
+	Email string `json:"email,omitempty"`
+	Name  string `json:"name,omitempty"`
+}
+
+// ListUsersRequest represents the request to list users with pagination
+type ListUsersRequest struct {
+	Page     int    `json:"page" binding:"min=1"`
+	PageSize int    `json:"page_size" binding:"min=1,max=100"`
+	Email    string `json:"email,omitempty"`
+	Name     string `json:"name,omitempty"`
+}
+
+// ListUsersResponse represents the response for list users
+type ListUsersResponse struct {
+	Users      []*User `json:"users"`
+	Total      int64   `json:"total"`
+	Page       int     `json:"page"`
+	PageSize   int     `json:"page_size"`
+	TotalPages int     `json:"total_pages"`
 }
 
 // Validate validates the user entity
@@ -87,5 +113,30 @@ func (u *User) UpdateName(ctx context.Context, name string) error {
 	u.Name = name
 
 	log.Info(ctx, "user name updated", "user_id", u.ID, "old_name", oldName, "new_name", name)
+	return nil
+}
+
+// UpdateEmail updates the user's email
+func (u *User) UpdateEmail(ctx context.Context, email string) error {
+	log := logger.Get().WithLayer("domain").WithComponent("user")
+
+	if log.DebugEnabled() {
+		log.Debug(ctx, "updating user email", "user_id", u.ID, "old_email", u.Email, "new_email", email)
+	}
+
+	if email == "" {
+		return errors.NewRequiredFieldError("email", email)
+	}
+
+	// Create temporary user to validate email format
+	tempUser := &User{Email: email}
+	if !tempUser.IsEmailValid() {
+		return errors.NewInvalidFormatError("email", email, "valid email address")
+	}
+
+	oldEmail := u.Email
+	u.Email = email
+
+	log.Info(ctx, "user email updated", "user_id", u.ID, "old_email", oldEmail, "new_email", email)
 	return nil
 }

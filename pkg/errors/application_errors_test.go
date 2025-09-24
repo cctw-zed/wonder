@@ -54,7 +54,7 @@ func TestConflictError(t *testing.T) {
 
 	t.Run("Create conflict error with context", func(t *testing.T) {
 		context := map[string]interface{}{
-			"email":      "test@example.com",
+			"email":        "test@example.com",
 			"attempted_at": "2023-10-01T10:00:00Z",
 		}
 		err := errors.NewConflictError("user", "email already registered", "existing-user-456", context)
@@ -117,9 +117,9 @@ func TestBusinessLogicError(t *testing.T) {
 
 	t.Run("Create business logic error with details", func(t *testing.T) {
 		details := map[string]interface{}{
-			"user_age":     17,
-			"minimum_age":  18,
-			"country":      "US",
+			"user_age":    17,
+			"minimum_age": 18,
+			"country":     "US",
 		}
 		err := errors.NewBusinessLogicError("user_registration", "cannot register user under 18", details)
 
@@ -134,8 +134,8 @@ func TestBusinessLogicError(t *testing.T) {
 
 func TestApplicationErrorInterface(t *testing.T) {
 	tests := []struct {
-		name   string
-		err    errors.BaseError
+		name string
+		err  errors.BaseError
 	}{
 		{
 			name: "EntityNotFoundError implements BaseError",

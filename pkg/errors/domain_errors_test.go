@@ -90,8 +90,8 @@ func TestInvalidStateError(t *testing.T) {
 
 func TestDomainErrorInterface(t *testing.T) {
 	tests := []struct {
-		name   string
-		err    errors.BaseError
+		name string
+		err  errors.BaseError
 	}{
 		{
 			name: "RequiredFieldError implements BaseError",

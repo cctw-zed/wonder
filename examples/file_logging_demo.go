@@ -18,7 +18,7 @@ func main() {
 		return
 	}
 
-	fmt.Println("=== File Logging Demo ===\n")
+	fmt.Println("=== File Logging Demo ===")
 
 	// Demo 1: JSON格式输出到文件
 	fmt.Println("1. JSON格式日志输出到文件...")

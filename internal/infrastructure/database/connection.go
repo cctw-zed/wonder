@@ -39,8 +39,8 @@ func NewConnection(cfg *config.DatabaseConfig) (*Connection, error) {
 
 	// Open database connection
 	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{
-		Logger:                 gormLogger,
-		PrepareStmt:           true,
+		Logger:                                   gormLogger,
+		PrepareStmt:                              true,
 		DisableForeignKeyConstraintWhenMigrating: false,
 	})
 	if err != nil {
@@ -100,11 +100,11 @@ func (c *Connection) Stats() interface{} {
 	return map[string]interface{}{
 		"max_open_connections": stats.MaxOpenConnections,
 		"open_connections":     stats.OpenConnections,
-		"in_use":              stats.InUse,
-		"idle":                stats.Idle,
-		"wait_count":          stats.WaitCount,
-		"wait_duration":       stats.WaitDuration,
-		"max_idle_closed":     stats.MaxIdleClosed,
+		"in_use":               stats.InUse,
+		"idle":                 stats.Idle,
+		"wait_count":           stats.WaitCount,
+		"wait_duration":        stats.WaitDuration,
+		"max_idle_closed":      stats.MaxIdleClosed,
 		"max_idle_time_closed": stats.MaxIdleTimeClosed,
 		"max_lifetime_closed":  stats.MaxLifetimeClosed,
 	}

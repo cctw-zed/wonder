@@ -4,11 +4,11 @@ import "fmt"
 
 // ValidationError represents validation failures in domain entities
 type ValidationError struct {
-	ErrorCode       ErrorCode
-	Field           string
-	Value           interface{}
-	Message         string
-	Context         map[string]interface{}
+	ErrorCode ErrorCode
+	Field     string
+	Value     interface{}
+	Message   string
+	Context   map[string]interface{}
 }
 
 func (e *ValidationError) Error() string {

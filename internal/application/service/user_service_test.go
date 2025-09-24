@@ -245,3 +245,411 @@ func createTestUser() *user.User {
 		UpdatedAt: time.Now(),
 	}
 }
+
+func TestUserService_GetProfile(t *testing.T) {
+	logger.Initialize()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockIDGen := idMocks.NewMockGenerator(ctrl)
+	service := NewUserService(mockRepo, mockIDGen)
+
+	testUser := createTestUser()
+
+	tests := []struct {
+		name          string
+		userID        string
+		mockBehavior  func()
+		expectedUser  *user.User
+		expectedError string
+	}{
+		{
+			name:   "successful get profile",
+			userID: "test-id-123",
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(testUser, nil).
+					Times(1)
+			},
+			expectedUser: testUser,
+		},
+		{
+			name:   "user not found",
+			userID: "nonexistent-id",
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "nonexistent-id").
+					Return(nil, nil).
+					Times(1)
+			},
+			expectedError: "not found",
+		},
+		{
+			name:   "empty user ID",
+			userID: "",
+			mockBehavior: func() {
+				// No mock calls expected
+			},
+			expectedError: "id is required",
+		},
+		{
+			name:   "repository error",
+			userID: "test-id-123",
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(nil, errors.New("database error")).
+					Times(1)
+			},
+			expectedError: "database error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mockBehavior()
+
+			result, err := service.GetProfile(context.Background(), tt.userID)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedUser, result)
+			}
+		})
+	}
+}
+
+func TestUserService_UpdateProfile(t *testing.T) {
+	logger.Initialize()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockIDGen := idMocks.NewMockGenerator(ctrl)
+	service := NewUserService(mockRepo, mockIDGen)
+
+	testUser := createTestUser()
+
+	tests := []struct {
+		name          string
+		userID        string
+		request       *user.UpdateProfileRequest
+		mockBehavior  func()
+		expectedError string
+	}{
+		{
+			name:   "successful update name only",
+			userID: "test-id-123",
+			request: &user.UpdateProfileRequest{
+				Name: "Updated Name",
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(testUser, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					Return(nil).
+					Times(1)
+			},
+		},
+		{
+			name:   "successful update email only",
+			userID: "test-id-123",
+			request: &user.UpdateProfileRequest{
+				Email: "updated@example.com",
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(testUser, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					GetByEmail(gomock.Any(), "updated@example.com").
+					Return(nil, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					Return(nil).
+					Times(1)
+			},
+		},
+		{
+			name:   "update both name and email",
+			userID: "test-id-123",
+			request: &user.UpdateProfileRequest{
+				Name:  "Updated Name",
+				Email: "updated@example.com",
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(testUser, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					GetByEmail(gomock.Any(), "updated@example.com").
+					Return(nil, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					Return(nil).
+					Times(1)
+			},
+		},
+		{
+			name:   "user not found",
+			userID: "nonexistent-id",
+			request: &user.UpdateProfileRequest{
+				Name: "Updated Name",
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "nonexistent-id").
+					Return(nil, nil).
+					Times(1)
+			},
+			expectedError: "not found",
+		},
+		{
+			name:   "email already exists for another user",
+			userID: "test-id-123",
+			request: &user.UpdateProfileRequest{
+				Email: "existing@example.com",
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(testUser, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					GetByEmail(gomock.Any(), "existing@example.com").
+					Return(&user.User{ID: "another-user-id"}, nil).
+					Times(1)
+			},
+			expectedError: "already exists",
+		},
+		{
+			name:   "empty user ID",
+			userID: "",
+			request: &user.UpdateProfileRequest{
+				Name: "Updated Name",
+			},
+			mockBehavior: func() {
+				// No mock calls expected
+			},
+			expectedError: "id is required",
+		},
+		{
+			name:    "nil request",
+			userID:  "test-id-123",
+			request: nil,
+			mockBehavior: func() {
+				// No mock calls expected
+			},
+			expectedError: "request is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mockBehavior()
+
+			result, err := service.UpdateProfile(context.Background(), tt.userID, tt.request)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
+}
+
+func TestUserService_ListUsers(t *testing.T) {
+	logger.Initialize()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockIDGen := idMocks.NewMockGenerator(ctrl)
+	service := NewUserService(mockRepo, mockIDGen)
+
+	testUsers := []*user.User{createTestUser()}
+	testResponse := &user.ListUsersResponse{
+		Users:      testUsers,
+		Total:      1,
+		Page:       1,
+		PageSize:   10,
+		TotalPages: 1,
+	}
+
+	tests := []struct {
+		name          string
+		request       *user.ListUsersRequest
+		mockBehavior  func()
+		expectedError string
+	}{
+		{
+			name: "successful list users",
+			request: &user.ListUsersRequest{
+				Page:     1,
+				PageSize: 10,
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					List(gomock.Any(), gomock.Any()).
+					Return(testResponse, nil).
+					Times(1)
+			},
+		},
+		{
+			name:    "nil request",
+			request: nil,
+			mockBehavior: func() {
+				// No mock calls expected
+			},
+			expectedError: "request is required",
+		},
+		{
+			name: "default pagination values",
+			request: &user.ListUsersRequest{
+				Page:     0, // Should be set to 1
+				PageSize: 0, // Should be set to 10
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					List(gomock.Any(), gomock.Any()).
+					Return(testResponse, nil).
+					Times(1)
+			},
+		},
+		{
+			name: "repository error",
+			request: &user.ListUsersRequest{
+				Page:     1,
+				PageSize: 10,
+			},
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					List(gomock.Any(), gomock.Any()).
+					Return(nil, errors.New("database error")).
+					Times(1)
+			},
+			expectedError: "database error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mockBehavior()
+
+			result, err := service.ListUsers(context.Background(), tt.request)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
+}
+
+func TestUserService_DeleteUser(t *testing.T) {
+	logger.Initialize()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockIDGen := idMocks.NewMockGenerator(ctrl)
+	service := NewUserService(mockRepo, mockIDGen)
+
+	testUser := createTestUser()
+
+	tests := []struct {
+		name          string
+		userID        string
+		mockBehavior  func()
+		expectedError string
+	}{
+		{
+			name:   "successful deletion",
+			userID: "test-id-123",
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(testUser, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					Delete(gomock.Any(), "test-id-123").
+					Return(nil).
+					Times(1)
+			},
+		},
+		{
+			name:   "user not found",
+			userID: "nonexistent-id",
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "nonexistent-id").
+					Return(nil, nil).
+					Times(1)
+			},
+			expectedError: "not found",
+		},
+		{
+			name:   "empty user ID",
+			userID: "",
+			mockBehavior: func() {
+				// No mock calls expected
+			},
+			expectedError: "id is required",
+		},
+		{
+			name:   "repository delete error",
+			userID: "test-id-123",
+			mockBehavior: func() {
+				mockRepo.EXPECT().
+					GetByID(gomock.Any(), "test-id-123").
+					Return(testUser, nil).
+					Times(1)
+				mockRepo.EXPECT().
+					Delete(gomock.Any(), "test-id-123").
+					Return(errors.New("database error")).
+					Times(1)
+			},
+			expectedError: "database error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mockBehavior()
+
+			err := service.DeleteUser(context.Background(), tt.userID)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

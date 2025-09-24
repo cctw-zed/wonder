@@ -103,9 +103,9 @@ func (b *UserBuilder) BuildMany(count int) []*user.User {
 	users := make([]*user.User, count)
 	for i := 0; i < count; i++ {
 		builder := NewUserBuilder().
-			WithID(b.user.ID + "-" + string(rune('0'+i))).
-			WithEmail(b.user.Email + string(rune('0'+i))).
-			WithName(b.user.Name + " " + string(rune('0'+i))).
+			WithID(b.user.ID+"-"+string(rune('0'+i))).
+			WithEmail(b.user.Email+string(rune('0'+i))).
+			WithName(b.user.Name+" "+string(rune('0'+i))).
 			WithTimestamps(b.user.CreatedAt, b.user.UpdatedAt)
 		users[i] = builder.Build()
 	}
