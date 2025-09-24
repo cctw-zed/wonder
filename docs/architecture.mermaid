@@ -1,0 +1,130 @@
+graph TB
+    %% DDD Layered Architecture Diagram
+    subgraph "Wonder Application Architecture - DDD Pattern"
+
+        %% Interface Layer
+        subgraph "Interface Layer"
+            HTTP["HTTP Handlers<br/>Gin Router"]
+            CLI["CLI Commands<br/>(Future)"]
+            GRPC["gRPC Handlers<br/>(Future)"]
+        end
+
+        %% Application Layer
+        subgraph "Application Layer"
+            UserUseCase["User Use Cases<br/>UserService"]
+            AuthUseCase["Auth Use Cases<br/>AuthService"]
+            EventBus["Event Bus<br/>EventBus"]
+        end
+
+        %% Domain Layer
+        subgraph "Domain Layer"
+            subgraph "User Aggregate"
+                UserAggregate["User Aggregate Root<br/>Business Logic"]
+                UserVO["Value Objects<br/>Email, Username"]
+                UserEvents["Domain Events<br/>UserRegistered"]
+            end
+
+            subgraph "Domain Services"
+                UserDomainService["User Domain Service<br/>UniqueCheck"]
+                PasswordService["Password Service<br/>HashValidation"]
+            end
+
+            subgraph "Repository Interfaces"
+                UserRepo["UserRepository<br/>Interface"]
+                EventStore["EventStore<br/>Interface"]
+            end
+        end
+
+        %% Infrastructure Layer
+        subgraph "Infrastructure Layer"
+            subgraph "Persistence"
+                UserRepoImpl["UserRepository<br/>GORM Implementation"]
+                Database[("PostgreSQL<br/>Database")]
+                Cache[("Redis Cache<br/>(Future)")]
+            end
+
+            subgraph "External Services"
+                EmailService["Email Service<br/>(Future)"]
+                SMSService["SMS Service<br/>(Future)"]
+            end
+
+            subgraph "Technical Components"
+                IDGenerator["Snowflake Algorithm<br/>ID Generator"]
+                Logger["Structured Logging<br/>Zap/Logrus"]
+                Config["Configuration Management<br/>Viper"]
+            end
+        end
+
+        %% Common Components
+        subgraph "Common Components"
+            Middleware["Middleware<br/>Auth, CORS, Logging"]
+            ErrorHandler["Error Handler<br/>Unified Error Response"]
+            Validator["Parameter Validator<br/>Gin Validator"]
+        end
+    end
+
+    %% Dependency Relationships (Top to Bottom)
+    %% Interface Layer -> Application Layer
+    HTTP --> UserUseCase
+    HTTP --> AuthUseCase
+    CLI --> UserUseCase
+    GRPC --> UserUseCase
+
+    %% Application Layer -> Domain Layer
+    UserUseCase --> UserAggregate
+    UserUseCase --> UserDomainService
+    UserUseCase --> UserRepo
+    AuthUseCase --> UserAggregate
+    AuthUseCase --> PasswordService
+
+    %% Domain Layer Internal Relationships
+    UserAggregate --> UserVO
+    UserAggregate --> UserEvents
+    UserDomainService --> UserRepo
+
+    %% Infrastructure Layer Implements Domain Interfaces
+    UserRepoImpl -.-> UserRepo
+    UserRepoImpl --> Database
+    UserRepoImpl --> Cache
+
+    %% Technical Component Usage
+    UserUseCase --> IDGenerator
+    HTTP --> Middleware
+    HTTP --> ErrorHandler
+    HTTP --> Validator
+    UserRepoImpl --> Logger
+    UserUseCase --> Config
+
+    %% Event Handling
+    UserAggregate --> EventBus
+    EventBus --> EventStore
+    EventBus --> EmailService
+
+    %% 样式定义
+    classDef interfaceLayer fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef applicationLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef domainLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef infrastructureLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef commonLayer fill:#fafafa,stroke:#424242,stroke-width:2px
+    classDef aggregateStyle fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px
+    classDef repositoryStyle fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+    classDef serviceStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+
+    %% 应用样式
+    class HTTP,CLI,GRPC interfaceLayer
+    class UserUseCase,AuthUseCase,EventBus applicationLayer
+    class UserAggregate aggregateStyle
+    class UserVO,UserEvents,UserDomainService,PasswordService domainLayer
+    class UserRepo,EventStore repositoryStyle
+    class UserRepoImpl,Database,Cache,EmailService,SMSService infrastructureLayer
+    class IDGenerator,Logger,Config serviceStyle
+    class Middleware,ErrorHandler,Validator commonLayer
+
+    %% Add explanatory notes
+    classDef noteStyle fill:#fffde7,stroke:#f57c00,stroke-width:1px,stroke-dasharray: 5 5
+
+    Note1["📋 DDD Core Principles:<br/>• Domain layer independent of technical details<br/>• Application layer orchestrates use cases<br/>• Infrastructure layer implements interfaces<br/>• Interface layer adapts external requests"]
+    Note2["🔄 Dependency Direction:<br/>Interface Layer → Application Layer → Domain Layer ← Infrastructure Layer<br/>(Dependency Inversion Principle)"]
+    Note3["🧪 Testing Strategy:<br/>• Domain Layer: Pure unit tests<br/>• Application Layer: Integration tests<br/>• Infrastructure Layer: Mock tests<br/>• Interface Layer: End-to-end tests"]
+
+    class Note1,Note2,Note3 noteStyle

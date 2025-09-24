@@ -1,0 +1,54 @@
+# Production Environment Configuration
+app:
+  name: "wonder"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
+
+server:
+  host: "0.0.0.0"
+  port: 80
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "60s"
+  enable_cors: false
+
+database:
+  host: "${DB_HOST}"
+  port: 5432
+  username: "${DB_USERNAME}"
+  password: "${DB_PASSWORD}"
+  database: "${DB_DATABASE}"
+  ssl_mode: "require"
+  timezone: "UTC"
+  max_open_conns: 50
+  max_idle_conns: 20
+  conn_max_lifetime: "2h"
+  conn_max_idle_time: "1h"
+  log_level: "error"
+
+log:
+  level: "info"
+  format: "json"
+  output: "file"
+  enable_file: true
+  file_path: "/var/log/wonder/app.log"
+
+id:
+  service_type: "${ID_SERVICE_TYPE}"
+  instance_id: "${ID_INSTANCE_ID}"
+  node_id: "${ID_NODE_ID}"
+
+external:
+  redis:
+    host: "${REDIS_HOST}"
+    port: 6379
+    password: "${REDIS_PASSWORD}"
+    database: 0
+
+  email:
+    provider: "${EMAIL_PROVIDER}"
+    host: "${EMAIL_HOST}"
+    port: 587
+    username: "${EMAIL_USERNAME}"
+    password: "${EMAIL_PASSWORD}"
