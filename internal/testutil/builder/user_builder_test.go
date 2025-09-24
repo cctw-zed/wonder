@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cctw-zed/wonder/internal/infrastructure/config"
 	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
@@ -41,14 +40,7 @@ func TestUserBuilder_WithCustomValues(t *testing.T) {
 
 func TestUserBuilder_Valid(t *testing.T) {
 	// Initialize logger for tests
-	cfg := &config.Config{
-		Log: &config.LogConfig{
-			Level:       "debug",
-			Format:      "text",
-			ServiceName: "wonder-test",
-		},
-	}
-	logger.InitializeGlobalLogger(cfg)
+	logger.Initialize()
 	user := NewUserBuilder().Valid().Build()
 
 	err := user.Validate(context.Background())

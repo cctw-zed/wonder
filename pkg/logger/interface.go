@@ -5,128 +5,78 @@ import (
 	"time"
 )
 
-// Logger defines the interface for all logging operations
+// Logger defines a minimal interface for structured logging
+// Inspired by go-kit/log and Kubernetes klog design principles
 type Logger interface {
-	// Core logging methods with different levels
-	Debug(ctx context.Context, message string, fields ...Field)
-	Info(ctx context.Context, message string, fields ...Field)
-	Warn(ctx context.Context, message string, fields ...Field)
-	Error(ctx context.Context, message string, fields ...Field)
-	Fatal(ctx context.Context, message string, fields ...Field)
+	// Core logging methods - simplified to key-value pairs only
+	Debug(ctx context.Context, msg string, keyvals ...interface{})
+	Info(ctx context.Context, msg string, keyvals ...interface{})
+	Warn(ctx context.Context, msg string, keyvals ...interface{})
+	Error(ctx context.Context, msg string, keyvals ...interface{})
 
-	// Structured logging with explicit fields
-	LogWithFields(ctx context.Context, level Level, message string, fields ...Field)
+	// Level checking for performance optimization
+	DebugEnabled() bool
+	InfoEnabled() bool
 
-	// With methods for adding context
-	WithField(key string, value interface{}) Logger
-	WithFields(fields Fields) Logger
-	WithError(err error) Logger
-	WithTraceID(traceID string) Logger
-
-	// Component and layer-specific loggers
+	// Context enrichment - returns new logger with additional context
+	With(keyvals ...interface{}) Logger
+	WithLayer(layer string) Logger
 	WithComponent(component string) Logger
-	WithLayer(layer DDDLayer) Logger
+	WithError(err error) Logger
 }
 
-// Level represents the logging level
-type Level string
+// Log represents a single log method interface (go-kit style)
+// For maximum flexibility, some use cases may prefer this minimal approach
+type Log interface {
+	Log(keyvals ...interface{}) error
+}
 
+// Level constants for simple usage
 const (
-	DebugLevel Level = "debug"
-	InfoLevel  Level = "info"
-	WarnLevel  Level = "warn"
-	ErrorLevel Level = "error"
-	FatalLevel Level = "fatal"
+	DEBUG = "debug"
+	INFO  = "info"
+	WARN  = "warn"
+	ERROR = "error"
 )
 
-// DDDLayer represents the DDD architecture layers
-type DDDLayer string
+// Performance-optimized field creators that avoid allocations
+func S(key, value string) interface{} { return key }
+func Sv(key, value string) interface{} { return value }
 
-const (
-	DomainLayer       DDDLayer = "domain"
-	ApplicationLayer  DDDLayer = "application"
-	InfrastructureLayer DDDLayer = "infrastructure"
-	InterfaceLayer    DDDLayer = "interface"
-)
-
-// Field represents a key-value pair for structured logging
-type Field struct {
-	Key   string
-	Value interface{}
+// KV creates a key-value pair
+func KV(key string, value interface{}) []interface{} {
+	return []interface{}{key, value}
 }
 
-// Fields represents a collection of fields
-type Fields map[string]interface{}
-
-// LogEntry represents a complete log entry
-type LogEntry struct {
-	Timestamp   time.Time `json:"timestamp"`
-	Level       Level     `json:"level"`
-	Message     string    `json:"message"`
-	TraceID     string    `json:"trace_id,omitempty"`
-	Component   string    `json:"component,omitempty"`
-	Layer       DDDLayer  `json:"layer,omitempty"`
-	Error       string    `json:"error,omitempty"`
-	ErrorType   string    `json:"error_type,omitempty"`
-	ServiceName string    `json:"service"`
-	Fields      Fields    `json:"fields,omitempty"`
+// Merge multiple key-value pairs
+func Merge(kvs ...[]interface{}) []interface{} {
+	var result []interface{}
+	for _, kv := range kvs {
+		result = append(result, kv...)
+	}
+	return result
 }
 
-// Factory defines the interface for creating loggers
-type Factory interface {
-	// Create a new logger instance
-	NewLogger() Logger
-
-	// Create layer-specific loggers
-	NewDomainLogger() Logger
-	NewApplicationLogger() Logger
-	NewInfrastructureLogger() Logger
-	NewInterfaceLogger() Logger
-
-	// Create component-specific loggers
-	NewComponentLogger(component string) Logger
+// Common field helpers for frequent use cases
+func Err(err error) []interface{} {
+	if err == nil {
+		return nil
+	}
+	return []interface{}{"error", err.Error()}
 }
 
-// Config represents the logging configuration
-type Config struct {
-	Level         Level  `yaml:"level" mapstructure:"level"`
-	Format        string `yaml:"format" mapstructure:"format"`
-	Output        string `yaml:"output" mapstructure:"output"`
-	EnableFile    bool   `yaml:"enable_file" mapstructure:"enable_file"`
-	FilePath      string `yaml:"file_path" mapstructure:"file_path"`
-	ServiceName   string `yaml:"service_name" mapstructure:"service_name"`
-	EnableTracing bool   `yaml:"enable_tracing" mapstructure:"enable_tracing"`
-	MaxFileSize   int    `yaml:"max_file_size" mapstructure:"max_file_size"`
-	MaxBackups    int    `yaml:"max_backups" mapstructure:"max_backups"`
-	MaxAge        int    `yaml:"max_age" mapstructure:"max_age"`
-	Compress      bool   `yaml:"compress" mapstructure:"compress"`
+func Duration(d time.Duration) []interface{} {
+	return []interface{}{"duration", d.String()}
 }
 
-// Helper functions for creating fields
-func String(key, value string) Field {
-	return Field{Key: key, Value: value}
+func UserID(id string) []interface{} {
+	return []interface{}{"user_id", id}
 }
 
-func Int(key string, value int) Field {
-	return Field{Key: key, Value: value}
+func Email(email string) []interface{} {
+	return []interface{}{"email", email}
 }
 
-func Int64(key string, value int64) Field {
-	return Field{Key: key, Value: value}
-}
-
-func Bool(key string, value bool) Field {
-	return Field{Key: key, Value: value}
-}
-
-func Duration(key string, value time.Duration) Field {
-	return Field{Key: key, Value: value}
-}
-
-func Time(key string, value time.Time) Field {
-	return Field{Key: key, Value: value}
-}
-
-func Any(key string, value interface{}) Field {
-	return Field{Key: key, Value: value}
+func Operation(op string) []interface{} {
+	return []interface{}{"operation", op}
 }

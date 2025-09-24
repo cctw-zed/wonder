@@ -12,21 +12,13 @@ import (
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
 	"github.com/cctw-zed/wonder/internal/domain/user/mocks"
-	"github.com/cctw-zed/wonder/internal/infrastructure/config"
 	"github.com/cctw-zed/wonder/pkg/logger"
 	idMocks "github.com/cctw-zed/wonder/pkg/snowflake/id/mocks"
 )
 
 func TestUserService_Register(t *testing.T) {
 	// Initialize logger for tests
-	cfg := &config.Config{
-		Log: &config.LogConfig{
-			Level:       "debug",
-			Format:      "text",
-			ServiceName: "wonder-test",
-		},
-	}
-	logger.InitializeGlobalLogger(cfg)
+	logger.Initialize()
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -166,16 +158,16 @@ func TestUserService_Register(t *testing.T) {
 }
 
 func TestUserService_validateEmail(t *testing.T) {
+	// Initialize logger for tests
+	logger.Initialize()
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockRepo := mocks.NewMockUserRepository(ctrl)
 	mockIDGen := idMocks.NewMockGenerator(ctrl)
 
-	service := &userService{
-		repo:  mockRepo,
-		idGen: mockIDGen,
-	}
+	service := NewUserServiceWithLogger(mockRepo, mockIDGen, logger.Get().WithLayer("application").WithComponent("user_service")).(*userService)
 
 	tests := []struct {
 		name    string

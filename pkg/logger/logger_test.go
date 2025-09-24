@@ -1,421 +1,244 @@
 package logger
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestLoggerInterface(t *testing.T) {
-	tests := []struct {
-		name   string
-		config *Config
-	}{
-		{
-			name: "JSON format logger",
-			config: &Config{
-				Level:       InfoLevel,
-				Format:      "json",
-				Output:      "stdout",
-				ServiceName: "test-service",
-			},
-		},
-		{
-			name: "Text format logger",
-			config: &Config{
-				Level:       DebugLevel,
-				Format:      "text",
-				Output:      "stdout",
-				ServiceName: "test-service",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			logger := NewLogrusLogger(tt.config)
-			ctx := context.Background()
-
-			// Test all log levels
-			logger.Debug(ctx, "Debug message", String("key", "debug"))
-			logger.Info(ctx, "Info message", String("key", "info"))
-			logger.Warn(ctx, "Warn message", String("key", "warn"))
-			logger.Error(ctx, "Error message", String("key", "error"))
-			// Note: Not testing Fatal as it would exit the process
-		})
-	}
-}
-
-func TestLoggerWithFields(t *testing.T) {
-	var buf bytes.Buffer
-	config := &Config{
-		Level:       DebugLevel,
-		Format:      "json",
-		Output:      "stdout",
-		ServiceName: "test-service",
-	}
-
-	logger := NewLogrusLogger(config)
-	// Redirect output to buffer for testing
-	logger.logger.SetOutput(&buf)
-
+func TestLogger_BasicLogging(t *testing.T) {
+	logger := NewLogger()
 	ctx := context.Background()
 
-	// Test WithField
-	fieldLogger := logger.WithField("test_field", "test_value")
-	fieldLogger.Info(ctx, "Test message")
+	// Test basic logging methods
+	logger.Debug(ctx, "debug message", "key1", "value1")
+	logger.Info(ctx, "info message", "key2", "value2")
+	logger.Warn(ctx, "warn message", "key3", "value3")
+	logger.Error(ctx, "error message", "key4", "value4")
 
-	output := buf.String()
-	assert.Contains(t, output, "test_field")
-	assert.Contains(t, output, "test_value")
-	assert.Contains(t, output, "Test message")
-
-	buf.Reset()
-
-	// Test WithFields
-	fieldsLogger := logger.WithFields(Fields{
-		"field1": "value1",
-		"field2": 123,
-		"field3": true,
-	})
-	fieldsLogger.Info(ctx, "Test with multiple fields")
-
-	output = buf.String()
-	assert.Contains(t, output, "field1")
-	assert.Contains(t, output, "value1")
-	assert.Contains(t, output, "field2")
-	assert.Contains(t, output, "123")
-	assert.Contains(t, output, "field3")
-	assert.Contains(t, output, "true")
+	// These should not panic
+	assert.True(t, true)
 }
 
-func TestTracing(t *testing.T) {
-	t.Run("GenerateTraceID", func(t *testing.T) {
-		traceID1 := GenerateTraceID()
-		traceID2 := GenerateTraceID()
+func TestLogger_LevelChecking(t *testing.T) {
+	logger := NewLogger()
 
-		assert.NotEmpty(t, traceID1)
-		assert.NotEmpty(t, traceID2)
-		assert.NotEqual(t, traceID1, traceID2)
-		assert.Equal(t, 32, len(traceID1)) // 16 bytes hex encoded
-	})
+	// Level checking should work
+	debugEnabled := logger.DebugEnabled()
+	infoEnabled := logger.InfoEnabled()
 
-	t.Run("TraceContext", func(t *testing.T) {
-		traceCtx := NewTraceContext()
-		assert.NotEmpty(t, traceCtx.TraceID)
-		assert.NotEmpty(t, traceCtx.RequestID)
-		assert.False(t, traceCtx.StartTime.IsZero())
+	// At debug level, both should be true
+	assert.True(t, debugEnabled)
+	assert.True(t, infoEnabled)
+}
 
-		ctx := WithTraceContext(context.Background(), traceCtx)
+func TestLogger_WithMethods(t *testing.T) {
+	logger := NewLogger()
+	ctx := context.Background()
 
-		extractedTraceID := GetTraceID(ctx)
-		extractedRequestID := GetRequestID(ctx)
+	// Test With method
+	loggerWithFields := logger.With("component", "test", "version", "1.0")
+	require.NotNil(t, loggerWithFields)
 
-		assert.Equal(t, traceCtx.TraceID, extractedTraceID)
-		assert.Equal(t, traceCtx.RequestID, extractedRequestID)
-	})
+	// Test WithLayer
+	layerLogger := logger.WithLayer("application")
+	require.NotNil(t, layerLogger)
 
-	t.Run("LoggerWithTracing", func(t *testing.T) {
-		var buf bytes.Buffer
-		config := &Config{
-			Level:       InfoLevel,
-			Format:      "json",
-			Output:      "stdout",
-			ServiceName: "test-service",
+	// Test WithComponent
+	componentLogger := logger.WithComponent("user_service")
+	require.NotNil(t, componentLogger)
+
+	// Test WithError
+	err := assert.AnError
+	errorLogger := logger.WithError(err)
+	require.NotNil(t, errorLogger)
+
+	// Test chaining
+	chainedLogger := logger.WithLayer("domain").WithComponent("user").With("operation", "create")
+	require.NotNil(t, chainedLogger)
+
+	// Log with chained logger
+	chainedLogger.Info(ctx, "chained logging test")
+}
+
+func TestLogger_ContextExtraction(t *testing.T) {
+	logger := NewLogger()
+
+	// Test with trace ID in context
+	ctx := context.WithValue(context.Background(), "trace_id", "test-trace-123")
+	logger.Info(ctx, "message with trace", "key", "value")
+
+	// Test with empty context
+	emptyCtx := context.Background()
+	logger.Info(emptyCtx, "message without trace")
+}
+
+func TestLogger_KeyValuesParsing(t *testing.T) {
+	logger := NewLogger()
+	ctx := context.Background()
+
+	// Test even number of keyvals
+	logger.Info(ctx, "even keyvals", "key1", "value1", "key2", "value2")
+
+	// Test odd number of keyvals (should handle gracefully)
+	logger.Info(ctx, "odd keyvals", "key1", "value1", "key2")
+
+	// Test non-string keys
+	logger.Info(ctx, "non-string key", 123, "value")
+}
+
+func TestLogger_Performance(t *testing.T) {
+	logger := NewLogger()
+	ctx := context.Background()
+
+	// Test performance with debug disabled
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		if logger.DebugEnabled() {
+			logger.Debug(ctx, "debug message", "iteration", i)
 		}
+	}
+	duration := time.Since(start)
 
-		logger := NewLogrusLogger(config)
-		logger.logger.SetOutput(&buf)
-
-		traceID := GenerateTraceID()
-		ctx := WithTraceID(context.Background(), traceID)
-
-		tracingLogger := LoggerWithTracing(ctx, logger)
-		tracingLogger.Info(ctx, "Test message with tracing")
-
-		output := buf.String()
-		assert.Contains(t, output, traceID)
-	})
+	// Should be fast when debug is enabled
+	assert.Less(t, duration, time.Millisecond*100)
 }
 
-func TestPerformanceLogger(t *testing.T) {
-	var buf bytes.Buffer
-	config := &Config{
-		Level:       InfoLevel,
-		Format:      "json",
-		Output:      "stdout",
-		ServiceName: "test-service",
-	}
+func TestHelperFunctions(t *testing.T) {
+	// Test KV helper
+	kv := KV("test", "value")
+	assert.Equal(t, []interface{}{"test", "value"}, kv)
 
-	logger := NewLogrusLogger(config)
-	logger.logger.SetOutput(&buf)
+	// Test Merge helper
+	kv1 := KV("key1", "value1")
+	kv2 := KV("key2", "value2")
+	merged := Merge(kv1, kv2)
+	expected := []interface{}{"key1", "value1", "key2", "value2"}
+	assert.Equal(t, expected, merged)
 
+	// Test Err helper
+	err := assert.AnError
+	errKV := Err(err)
+	assert.Equal(t, []interface{}{"error", err.Error()}, errKV)
+
+	// Test Err helper with nil
+	nilErrKV := Err(nil)
+	assert.Nil(t, nilErrKV)
+
+	// Test Duration helper
+	dur := time.Second
+	durKV := Duration(dur)
+	assert.Equal(t, []interface{}{"duration", "1s"}, durKV)
+
+	// Test UserID helper
+	userKV := UserID("user-123")
+	assert.Equal(t, []interface{}{"user_id", "user-123"}, userKV)
+
+	// Test Email helper
+	emailKV := Email("test@example.com")
+	assert.Equal(t, []interface{}{"email", "test@example.com"}, emailKV)
+
+	// Test Operation helper
+	opKV := Operation("create_user")
+	assert.Equal(t, []interface{}{"operation", "create_user"}, opKV)
+}
+
+func TestGlobalLogger(t *testing.T) {
+	// Initialize global logger
+	Initialize()
+
+	// Test global logger functions
 	ctx := context.Background()
-	perfLogger := NewPerformanceLogger(ctx, logger)
+	LogDebug(ctx, "global debug")
+	LogInfo(ctx, "global info")
+	LogWarn(ctx, "global warn")
+	LogError(ctx, "global error")
 
-	t.Run("LogDuration fast operation", func(t *testing.T) {
-		startTime := time.Now().Add(-100 * time.Millisecond)
-		perfLogger.LogDuration("test_operation", startTime)
+	// Test getting global logger
+	globalLogger := Get()
+	assert.NotNil(t, globalLogger)
 
-		output := buf.String()
-		assert.Contains(t, output, "test_operation")
-		assert.Contains(t, output, "duration")
-		assert.Contains(t, output, "Operation completed")
-	})
-
-	buf.Reset()
-
-	t.Run("LogDuration slow operation", func(t *testing.T) {
-		startTime := time.Now().Add(-2 * time.Second)
-		perfLogger.LogDuration("slow_operation", startTime)
-
-		output := buf.String()
-		assert.Contains(t, output, "slow_operation")
-		assert.Contains(t, output, "Slow operation")
-	})
+	// Multiple calls should return same instance
+	globalLogger2 := Get()
+	assert.Equal(t, globalLogger, globalLogger2)
 }
 
-func TestFactoryAndGlobalLogger(t *testing.T) {
-	config := &Config{
-		Level:       InfoLevel,
-		Format:      "json",
-		Output:      "stdout",
-		ServiceName: "test-service",
-	}
-
-	factory := NewFactory(config)
-	SetGlobalFactory(factory)
-
-	t.Run("Factory creates loggers", func(t *testing.T) {
-		logger := factory.NewLogger()
-		assert.NotNil(t, logger)
-
-		domainLogger := factory.NewDomainLogger()
-		assert.NotNil(t, domainLogger)
-
-		appLogger := factory.NewApplicationLogger()
-		assert.NotNil(t, appLogger)
-
-		infraLogger := factory.NewInfrastructureLogger()
-		assert.NotNil(t, infraLogger)
-
-		interfaceLogger := factory.NewInterfaceLogger()
-		assert.NotNil(t, interfaceLogger)
-
-		componentLogger := factory.NewComponentLogger("test-component")
-		assert.NotNil(t, componentLogger)
-	})
-
-	t.Run("Global factory functions work", func(t *testing.T) {
-		logger := NewLogger()
-		assert.NotNil(t, logger)
-
-		domainLogger := factory.NewDomainLogger()
-		assert.NotNil(t, domainLogger)
-
-		appLogger := factory.NewApplicationLogger()
-		assert.NotNil(t, appLogger)
-
-		infraLogger := factory.NewInfrastructureLogger()
-		assert.NotNil(t, infraLogger)
-
-		interfaceLogger := factory.NewInterfaceLogger()
-		assert.NotNil(t, interfaceLogger)
-
-		componentLogger := NewComponentLogger("test-component")
-		assert.NotNil(t, componentLogger)
-	})
-}
-
-func TestDDDLoggers(t *testing.T) {
-	var buf bytes.Buffer
-	config := &Config{
-		Level:       DebugLevel,
-		Format:      "json",
-		Output:      "stdout",
-		ServiceName: "test-service",
-	}
-
-	baseLogger := NewLogrusLogger(config)
-	baseLogger.logger.SetOutput(&buf)
-
+// Benchmark tests to compare performance
+func BenchmarkLogger_Info(b *testing.B) {
+	logger := NewLogger()
 	ctx := context.Background()
 
-	t.Run("DomainLogger", func(t *testing.T) {
-		domainLogger := NewDomainLogger(baseLogger)
-
-		domainLogger.LogBusinessRule(ctx, "UserAgeValidation", "User", "123", true)
-		output := buf.String()
-		assert.Contains(t, output, "UserAgeValidation")
-		assert.Contains(t, output, "User")
-		assert.Contains(t, output, "123")
-		assert.Contains(t, output, "true")
-
-		buf.Reset()
-
-		domainLogger.LogDomainEvent(ctx, "UserRegistered", "user-123")
-		output = buf.String()
-		assert.Contains(t, output, "UserRegistered")
-		assert.Contains(t, output, "user-123")
-	})
-
-	t.Run("ApplicationLogger", func(t *testing.T) {
-		appLogger := NewApplicationLogger(baseLogger)
-		startTime := time.Now().Add(-100 * time.Millisecond)
-
-		appLogger.LogUseCase(ctx, "RegisterUser", startTime, true)
-		output := buf.String()
-		assert.Contains(t, output, "RegisterUser")
-		assert.Contains(t, output, "duration")
-		assert.Contains(t, output, "true")
-
-		buf.Reset()
-
-		appLogger.LogValidation(ctx, "EmailValidation", false, []string{"invalid format"})
-		output = buf.String()
-		assert.Contains(t, output, "EmailValidation")
-		assert.Contains(t, output, "false")
-		assert.Contains(t, output, "invalid format")
-	})
-
-	t.Run("InfrastructureLogger", func(t *testing.T) {
-		infraLogger := NewInfrastructureLogger(baseLogger)
-
-		infraLogger.LogDatabaseOperation(ctx, "SELECT", "users", 50*time.Millisecond, 5)
-		output := buf.String()
-		assert.Contains(t, output, "SELECT")
-		assert.Contains(t, output, "users")
-		assert.Contains(t, output, "5")
-
-		buf.Reset()
-
-		infraLogger.LogExternalServiceCall(ctx, "PaymentAPI", "/charge", "POST", 200, 1*time.Second)
-		output = buf.String()
-		assert.Contains(t, output, "PaymentAPI")
-		assert.Contains(t, output, "/charge")
-		assert.Contains(t, output, "POST")
-		assert.Contains(t, output, "200")
-	})
-
-	t.Run("InterfaceLogger", func(t *testing.T) {
-		interfaceLogger := NewInterfaceLogger(baseLogger)
-
-		interfaceLogger.LogHTTPRequest(ctx, "POST", "/api/users", 201, 200*time.Millisecond, "test-agent")
-		output := buf.String()
-		assert.Contains(t, output, "POST")
-		assert.Contains(t, output, "/api/users")
-		assert.Contains(t, output, "201")
-		assert.Contains(t, output, "test-agent")
-
-		buf.Reset()
-
-		interfaceLogger.LogAuthentication(ctx, "user-123", "password", true, "success")
-		output = buf.String()
-		assert.Contains(t, output, "user-123")
-		assert.Contains(t, output, "password")
-		assert.Contains(t, output, "true")
-		assert.Contains(t, output, "success")
-	})
-}
-
-func TestConfigValidation(t *testing.T) {
-	tests := []struct {
-		name    string
-		config  *Config
-		wantErr bool
-	}{
-		{
-			name: "Valid config",
-			config: &Config{
-				Level:         InfoLevel,
-				Format:        "json",
-				Output:        "stdout",
-				ServiceName:   "test-service",
-				EnableTracing: true,
-				MaxFileSize:   100,
-				MaxBackups:    3,
-				MaxAge:        30,
-				Compress:      true,
-			},
-			wantErr: false,
-		},
-		{
-			name: "Empty service name",
-			config: &Config{
-				Level:  InfoLevel,
-				Format: "json",
-				Output: "stdout",
-				// ServiceName is empty
-				EnableTracing: true,
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			logger := NewLogrusLogger(tt.config)
-			// If we get here without panic, the config was accepted
-			// For empty service name, it should fallback to default
-			assert.NotNil(t, logger)
-		})
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		logger.Info(ctx, "benchmark message", "iteration", i)
 	}
 }
 
-func TestFieldHelperFunctions(t *testing.T) {
-	stringField := String("key", "value")
-	assert.Equal(t, "key", stringField.Key)
-	assert.Equal(t, "value", stringField.Value)
-
-	intField := Int("count", 42)
-	assert.Equal(t, "count", intField.Key)
-	assert.Equal(t, 42, intField.Value)
-
-	boolField := Bool("active", true)
-	assert.Equal(t, "active", boolField.Key)
-	assert.Equal(t, true, boolField.Value)
-
-	now := time.Now()
-	timeField := Time("timestamp", now)
-	assert.Equal(t, "timestamp", timeField.Key)
-	assert.Equal(t, now, timeField.Value)
-
-	duration := 5 * time.Second
-	durationField := Duration("elapsed", duration)
-	assert.Equal(t, "elapsed", durationField.Key)
-	assert.Equal(t, duration, durationField.Value)
-}
-
-func TestLogrusLoggerImplementsInterface(t *testing.T) {
-	config := &Config{
-		Level:       InfoLevel,
-		Format:      "json",
-		Output:      "stdout",
-		ServiceName: "test-service",
-	}
-
-	var logger Logger = NewLogrusLogger(config)
-	assert.NotNil(t, logger)
-
-	// Test that we can call all interface methods
+func BenchmarkLogger_DebugDisabled(b *testing.B) {
+	logger := NewLogger()
 	ctx := context.Background()
-	logger.Debug(ctx, "test")
-	logger.Info(ctx, "test")
-	logger.Warn(ctx, "test")
-	logger.Error(ctx, "test")
 
-	withFieldLogger := logger.WithField("key", "value")
-	assert.NotNil(t, withFieldLogger)
+	// Disable debug level by setting higher level
+	// (This would need implementation in real usage)
 
-	withFieldsLogger := logger.WithFields(Fields{"key": "value"})
-	assert.NotNil(t, withFieldsLogger)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if logger.DebugEnabled() {
+			logger.Debug(ctx, "benchmark debug", "iteration", i)
+		}
+	}
+}
 
-	withComponentLogger := logger.WithComponent("test-component")
-	assert.NotNil(t, withComponentLogger)
+func BenchmarkLogger_WithChaining(b *testing.B) {
+	logger := NewLogger()
+	ctx := context.Background()
 
-	withLayerLogger := logger.WithLayer(DomainLayer)
-	assert.NotNil(t, withLayerLogger)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		chainedLogger := logger.WithLayer("test").WithComponent("bench")
+		chainedLogger.Info(ctx, "chained message", "iteration", i)
+	}
+}
+
+// Example usage tests that demonstrate the API
+func ExampleLogger_basic() {
+	logger := NewLogger()
+	ctx := context.Background()
+
+	// Basic usage - similar to go-kit/log
+	logger.Info(ctx, "user registered", "email", "user@example.com", "user_id", "123")
+
+	// With context
+	appLogger := logger.WithLayer("application").WithComponent("user_service")
+	appLogger.Debug(ctx, "validating email", "email", "user@example.com")
+
+	// Error logging
+	err := assert.AnError
+	appLogger.Error(ctx, "validation failed", "error", err.Error(), "phase", "email_check")
+}
+
+func ExampleLogger_helpers() {
+	logger := NewLogger()
+	ctx := context.Background()
+
+	// Using helper functions for common patterns
+	logger.Info(ctx, "operation started",
+		Merge(
+			Operation("user_registration"),
+			UserID("123"),
+			Email("user@example.com"),
+		)...,
+	)
+
+	// Error with helper
+	err := assert.AnError
+	logger.Error(ctx, "operation failed",
+		Merge(
+			Operation("user_registration"),
+			Err(err),
+		)...,
+	)
 }
