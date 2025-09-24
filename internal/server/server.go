@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/cctw-zed/wonder/internal/container"
+	"github.com/cctw-zed/wonder/internal/middleware"
 )
 
 // Server represents the HTTP server
@@ -64,6 +65,9 @@ func (s *Server) GetAddr() string {
 // setupRouter configures the HTTP routes
 func setupRouter(c *container.Container) *gin.Engine {
 	router := gin.New()
+
+	// Add TraceID middleware first to ensure all requests have trace IDs
+	router.Use(middleware.TraceIDMiddleware())
 
 	// Use default Gin middleware for now
 	router.Use(gin.Logger())

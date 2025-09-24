@@ -3,11 +3,22 @@ package logger
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
+
+// LogConfig represents logger configuration
+type LogConfig struct {
+	Level      string // debug, info, warn, error
+	Format     string // json, text
+	Output     string // stdout, file, both
+	FilePath   string // path to log file (when Output is file or both)
+	EnableFile bool   // enable file logging
+}
 
 // simpleLogger implements Logger interface with minimal overhead
 type simpleLogger struct {
@@ -17,24 +28,93 @@ type simpleLogger struct {
 	layer     string
 }
 
-// NewLogger creates a new simplified logger instance
+// NewLogger creates a new simplified logger instance with default configuration
 func NewLogger() Logger {
-	l := logrus.New()
-	l.SetFormatter(&logrus.JSONFormatter{
-		TimestampFormat: time.RFC3339Nano,
-		FieldMap: logrus.FieldMap{
-			logrus.FieldKeyTime:  "timestamp",
-			logrus.FieldKeyLevel: "level",
-			logrus.FieldKeyMsg:   "message",
-		},
+	return NewLoggerWithConfig(LogConfig{
+		Level:  "debug",
+		Format: "json",
+		Output: "stdout",
 	})
-	l.SetOutput(os.Stdout)
-	l.SetLevel(logrus.DebugLevel)
+}
+
+// NewLoggerWithConfig creates a new logger with specified configuration
+func NewLoggerWithConfig(config LogConfig) Logger {
+	l := logrus.New()
+
+	// Set formatter
+	if config.Format == "text" {
+		l.SetFormatter(&logrus.TextFormatter{
+			TimestampFormat: time.RFC3339Nano,
+			FullTimestamp:   true,
+		})
+	} else {
+		l.SetFormatter(&logrus.JSONFormatter{
+			TimestampFormat: time.RFC3339Nano,
+			FieldMap: logrus.FieldMap{
+				logrus.FieldKeyTime:  "timestamp",
+				logrus.FieldKeyLevel: "level",
+				logrus.FieldKeyMsg:   "message",
+			},
+		})
+	}
+
+	// Set log level
+	level, err := logrus.ParseLevel(config.Level)
+	if err != nil {
+		level = logrus.DebugLevel // fallback to debug
+	}
+	l.SetLevel(level)
+
+	// Set output destination
+	var output io.Writer = os.Stdout
+
+	switch config.Output {
+	case "file":
+		if config.FilePath != "" {
+			fileOutput, err := createLogFile(config.FilePath)
+			if err != nil {
+				// Fallback to stdout on file creation error
+				fmt.Fprintf(os.Stderr, "Failed to create log file %s: %v. Using stdout.\n", config.FilePath, err)
+			} else {
+				output = fileOutput
+			}
+		}
+	case "both":
+		if config.FilePath != "" {
+			fileOutput, err := createLogFile(config.FilePath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to create log file %s: %v. Using stdout only.\n", config.FilePath, err)
+			} else {
+				output = io.MultiWriter(os.Stdout, fileOutput)
+			}
+		}
+	default: // "stdout" or any other value
+		output = os.Stdout
+	}
+
+	l.SetOutput(output)
 
 	return &simpleLogger{
 		logger: l,
 		baseKV: make(map[string]interface{}),
 	}
+}
+
+// createLogFile creates and opens a log file, ensuring the directory exists
+func createLogFile(filePath string) (*os.File, error) {
+	// Ensure directory exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create log directory %s: %w", dir, err)
+	}
+
+	// Open file in append mode
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file %s: %w", filePath, err)
+	}
+
+	return file, nil
 }
 
 // Debug logs a debug level message with key-value pairs
@@ -178,7 +258,7 @@ func extractTraceID(ctx context.Context) string {
 		return ""
 	}
 
-	// Try to extract from standard context keys
+	// Try to extract from standard context keys used by our middleware
 	if traceID := ctx.Value("trace_id"); traceID != nil {
 		if str, ok := traceID.(string); ok {
 			return str
@@ -191,15 +271,27 @@ func extractTraceID(ctx context.Context) string {
 		}
 	}
 
+	// Support for other common trace ID context keys
+	if traceID := ctx.Value("traceID"); traceID != nil {
+		if str, ok := traceID.(string); ok {
+			return str
+		}
+	}
+
 	return ""
 }
 
 // Global logger instance for convenience
 var defaultLogger Logger
 
-// Initialize sets up the global logger
+// Initialize sets up the global logger with default configuration
 func Initialize() {
 	defaultLogger = NewLogger()
+}
+
+// InitializeWithConfig sets up the global logger with custom configuration
+func InitializeWithConfig(config LogConfig) {
+	defaultLogger = NewLoggerWithConfig(config)
 }
 
 // Get returns the global logger instance

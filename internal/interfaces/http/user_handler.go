@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
+	"github.com/cctw-zed/wonder/internal/middleware"
 	"github.com/cctw-zed/wonder/pkg/errors"
 )
 
@@ -30,8 +30,8 @@ type RegisterRequest struct {
 }
 
 func (h *UserHandler) Register(c *gin.Context) {
-	// Generate trace ID for request tracking
-	traceID := h.generateTraceID()
+	// Get trace ID from context (injected by middleware)
+	traceID := middleware.GetTraceIDFromContext(c.Request.Context())
 
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -70,7 +70,3 @@ func (h *UserHandler) Register(c *gin.Context) {
 	})
 }
 
-// generateTraceID generates a unique trace ID for request tracking
-func (h *UserHandler) generateTraceID() string {
-	return uuid.New().String()
-}

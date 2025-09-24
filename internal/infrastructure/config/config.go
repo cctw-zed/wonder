@@ -227,7 +227,7 @@ func (c *LogConfig) Validate() error {
 		return fmt.Errorf("log format must be one of: %v", validFormats)
 	}
 
-	validOutputs := []string{"stdout", "stderr", "file"}
+	validOutputs := []string{"stdout", "stderr", "file", "both"}
 	valid = false
 	for _, output := range validOutputs {
 		if c.Output == output {

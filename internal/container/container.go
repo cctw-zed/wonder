@@ -41,8 +41,14 @@ func NewContainerForEnvironment(ctx context.Context, environment string) (*Conta
 		return nil, fmt.Errorf("failed to load config for environment %s: %w", environment, err)
 	}
 
-	// Initialize global logger
-	logger.Initialize()
+	// Initialize global logger with configuration
+	logger.InitializeWithConfig(logger.LogConfig{
+		Level:      cfg.Log.Level,
+		Format:     cfg.Log.Format,
+		Output:     cfg.Log.Output,
+		FilePath:   cfg.Log.FilePath,
+		EnableFile: cfg.Log.EnableFile,
+	})
 	appLogger := logger.Get().WithLayer("infrastructure").WithComponent("container")
 
 	// 检测ID分配策略
@@ -106,8 +112,14 @@ func NewContainerWithConfig(ctx context.Context, configPath string) (*Container,
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Initialize global logger
-	logger.Initialize()
+	// Initialize global logger with configuration
+	logger.InitializeWithConfig(logger.LogConfig{
+		Level:      cfg.Log.Level,
+		Format:     cfg.Log.Format,
+		Output:     cfg.Log.Output,
+		FilePath:   cfg.Log.FilePath,
+		EnableFile: cfg.Log.EnableFile,
+	})
 	appLogger := logger.Get().WithLayer("infrastructure").WithComponent("container")
 
 	// 检测ID分配策略
