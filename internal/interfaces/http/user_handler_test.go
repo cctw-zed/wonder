@@ -17,6 +17,7 @@ import (
 	"github.com/cctw-zed/wonder/internal/domain/user"
 	"github.com/cctw-zed/wonder/internal/domain/user/mocks"
 	"github.com/cctw-zed/wonder/internal/testutil/builder"
+	apperrors "github.com/cctw-zed/wonder/pkg/errors"
 )
 
 func setupGinTest() *gin.Engine {
@@ -373,4 +374,279 @@ func BenchmarkUserHandler_Register(b *testing.B) {
 			b.Fatalf("Expected status %d, got %d", http.StatusCreated, w.Code)
 		}
 	}
+}
+
+func TestUserHandler_GetProfile_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	// Setup expected behavior
+	expectedUser := builder.NewUserBuilderForTesting().
+		ValidUserWithEmail("test@example.com")
+
+	mockUserService.EXPECT().
+		GetProfile(gomock.Any(), "test-user-id").
+		Return(expectedUser, nil).
+		Times(1)
+
+	// Setup Gin router
+	router := setupGinTest()
+	router.GET("/users/:id", handler.GetProfile)
+
+	// Create request
+	req := httptest.NewRequest(http.MethodGet, "/users/test-user-id", nil)
+	w := httptest.NewRecorder()
+
+	// Execute request
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response, "user")
+	assert.Contains(t, response, "trace_id")
+
+	userData := response["user"].(map[string]interface{})
+	assert.Equal(t, expectedUser.ID, userData["id"])
+	assert.Equal(t, expectedUser.Email, userData["email"])
+}
+
+func TestUserHandler_GetProfile_NotFound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	mockUserService.EXPECT().
+		GetProfile(gomock.Any(), "nonexistent-id").
+		Return(nil, apperrors.NewEntityNotFoundError("user", "nonexistent-id")).
+		Times(1)
+
+	router := setupGinTest()
+	router.GET("/users/:id", handler.GetProfile)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/nonexistent-id", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestUserHandler_UpdateProfile_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	updatedUser := builder.NewUserBuilderForTesting().
+		ValidUserWithEmail("updated@example.com")
+
+	mockUserService.EXPECT().
+		UpdateProfile(gomock.Any(), "test-user-id", gomock.Any()).
+		Return(updatedUser, nil).
+		Times(1)
+
+	requestBody := user.UpdateProfileRequest{
+		Email: "updated@example.com",
+		Name:  "Updated Name",
+	}
+	jsonBody, _ := json.Marshal(requestBody)
+
+	router := setupGinTest()
+	router.PUT("/users/:id", handler.UpdateProfile)
+
+	req := httptest.NewRequest(http.MethodPut, "/users/test-user-id", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response, "user")
+	assert.Contains(t, response, "trace_id")
+}
+
+func TestUserHandler_UpdateProfile_InvalidJSON(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	router := setupGinTest()
+	router.PUT("/users/:id", handler.UpdateProfile)
+
+	req := httptest.NewRequest(http.MethodPut, "/users/test-user-id", bytes.NewBuffer([]byte("invalid-json")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUserHandler_ListUsers_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	testUsers := []*user.User{
+		builder.NewUserBuilderForTesting().ValidUserWithEmail("user1@example.com"),
+		builder.NewUserBuilderForTesting().ValidUserWithEmail("user2@example.com"),
+	}
+
+	expectedResponse := &user.ListUsersResponse{
+		Users:      testUsers,
+		Total:      2,
+		Page:       1,
+		PageSize:   10,
+		TotalPages: 1,
+	}
+
+	mockUserService.EXPECT().
+		ListUsers(gomock.Any(), gomock.Any()).
+		Return(expectedResponse, nil).
+		Times(1)
+
+	router := setupGinTest()
+	router.GET("/users", handler.ListUsers)
+
+	req := httptest.NewRequest(http.MethodGet, "/users?page=1&page_size=10", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response, "data")
+	assert.Contains(t, response, "trace_id")
+
+	data := response["data"].(map[string]interface{})
+	assert.Equal(t, float64(2), data["total"])
+	assert.Equal(t, float64(1), data["page"])
+}
+
+func TestUserHandler_ListUsers_WithFilters(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	expectedResponse := &user.ListUsersResponse{
+		Users:      []*user.User{},
+		Total:      0,
+		Page:       1,
+		PageSize:   10,
+		TotalPages: 0,
+	}
+
+	mockUserService.EXPECT().
+		ListUsers(gomock.Any(), gomock.Any()).
+		Return(expectedResponse, nil).
+		Times(1)
+
+	router := setupGinTest()
+	router.GET("/users", handler.ListUsers)
+
+	req := httptest.NewRequest(http.MethodGet, "/users?page=1&page_size=5&email=test&name=john", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestUserHandler_DeleteUser_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	mockUserService.EXPECT().
+		DeleteUser(gomock.Any(), "test-user-id").
+		Return(nil).
+		Times(1)
+
+	router := setupGinTest()
+	router.DELETE("/users/:id", handler.DeleteUser)
+
+	req := httptest.NewRequest(http.MethodDelete, "/users/test-user-id", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Contains(t, response, "message")
+	assert.Contains(t, response, "trace_id")
+	assert.Equal(t, "User deleted successfully", response["message"])
+}
+
+func TestUserHandler_DeleteUser_NotFound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	mockUserService.EXPECT().
+		DeleteUser(gomock.Any(), "nonexistent-id").
+		Return(apperrors.NewEntityNotFoundError("user", "nonexistent-id")).
+		Times(1)
+
+	router := setupGinTest()
+	router.DELETE("/users/:id", handler.DeleteUser)
+
+	req := httptest.NewRequest(http.MethodDelete, "/users/nonexistent-id", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestUserHandler_GetProfile_EmptyUserID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserService := mocks.NewMockUserService(ctrl)
+	handler := NewUserHandler(mockUserService)
+
+	router := setupGinTest()
+	router.GET("/users/:id", handler.GetProfile)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// The request should result in a 404 because the route doesn't match
+	assert.Equal(t, http.StatusNotFound, w.Code)
 }

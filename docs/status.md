@@ -78,8 +78,11 @@
 - [x] **Error Handling**: Unified error handling and response format ✅ **Completed**
 - [x] **Configuration Management**: Environment configuration and config file management ✅ **Completed**
 
-### Medium Priority
+### High Priority
+- [ ] **Account Lifecycle APIs (LIFECYCLE-001)**: Implement complete user lifecycle management APIs including login, profile management, password management, and account status management
 - [ ] **Business Logic**: Improve user business logic implementation
+
+### Medium Priority
 - [ ] **Data Validation**: Request parameter validation and business rule validation
 - [ ] **Test Coverage**: Unit tests and integration tests
 
@@ -167,6 +170,16 @@
 ---
 
 ## 📝 Development Notes
+
+### 2025-09-24
+- **LIFECYCLE-001 Task Added**: Added comprehensive account lifecycle management APIs task to project roadmap
+  - Task Priority: High (addresses critical gap beyond basic registration)
+  - Scope: Complete user lifecycle including login, profile management, password management, account status management
+  - API Endpoints: 9 new RESTful endpoints for full account management
+  - Dependencies: Building on existing INFRA-001, ERROR-001, and LOG-001 infrastructure
+  - Estimated Effort: 8 development days covering Domain, Application, Infrastructure, and Interface layers
+  - Integration: Seamlessly integrates with existing DDD architecture and error handling systems
+  - Next Steps: This task should be prioritized in the next sprint as it provides essential functionality for user management
 
 ### 2025-09-23
 - **LOG-001 Implementation Completed**: Successfully implemented comprehensive logging component system

@@ -6,11 +6,11 @@ import (
 
 // HTTPError represents errors at the HTTP interface layer
 type HTTPError struct {
-	StatusCode    int                    `json:"status_code"`
-	ErrorCode     ErrorCode              `json:"code"`
-	Message       string                 `json:"message"`
-	ErrorDetails  map[string]interface{} `json:"details,omitempty"`
-	TraceID       string                 `json:"trace_id,omitempty"`
+	StatusCode   int                    `json:"status_code"`
+	ErrorCode    ErrorCode              `json:"code"`
+	Message      string                 `json:"message"`
+	ErrorDetails map[string]interface{} `json:"details,omitempty"`
+	TraceID      string                 `json:"trace_id,omitempty"`
 }
 
 func (e *HTTPError) Error() string {

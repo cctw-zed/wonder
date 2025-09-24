@@ -185,6 +185,77 @@ func (r *userRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// List retrieves users with pagination and filtering
+func (r *userRepository) List(ctx context.Context, req *user.ListUsersRequest) (*user.ListUsersResponse, error) {
+	if req == nil {
+		return nil, wonderErrors.NewRequiredFieldError("request", "nil")
+	}
+
+	// Set default pagination values
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	if r.log.DebugEnabled() {
+		r.log.Debug(ctx, "listing users", "page", page, "page_size", pageSize, "email_filter", req.Email, "name_filter", req.Name)
+	}
+
+	// Build query with filters
+	query := r.db.WithContext(ctx).Model(&user.User{})
+
+	if req.Email != "" {
+		query = query.Where("email ILIKE ?", "%"+req.Email+"%")
+	}
+
+	if req.Name != "" {
+		query = query.Where("name ILIKE ?", "%"+req.Name+"%")
+	}
+
+	// Get total count
+	var total int64
+	countQuery := query
+	if err := countQuery.Count(&total).Error; err != nil {
+		r.log.Error(ctx, "failed to count users", "error", err)
+		return nil, wonderErrors.NewDatabaseError("count", "users", err, isRetryableError(err), map[string]interface{}{
+			"page":      page,
+			"page_size": pageSize,
+		})
+	}
+
+	// Get users with pagination
+	var users []*user.User
+	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+		r.log.Error(ctx, "failed to list users", "error", err)
+		return nil, wonderErrors.NewDatabaseError("list", "users", err, isRetryableError(err), map[string]interface{}{
+			"page":      page,
+			"page_size": pageSize,
+		})
+	}
+
+	// Calculate total pages
+	totalPages := int((total + int64(pageSize) - 1) / int64(pageSize))
+
+	r.log.Info(ctx, "users listed successfully", "total", total, "page", page, "page_size", pageSize, "returned_count", len(users))
+
+	return &user.ListUsersResponse{
+		Users:      users,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
 // isDuplicateKeyError checks if the error is a duplicate key constraint violation
 func isDuplicateKeyError(err error) bool {
 	if err == nil {

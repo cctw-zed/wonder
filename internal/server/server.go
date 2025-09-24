@@ -104,7 +104,10 @@ func setupRouter(c *container.Container) *gin.Engine {
 		users := v1.Group("/users")
 		{
 			users.POST("/register", c.UserHandler.Register)
-			// Add more user routes as needed
+			users.GET("/:id", c.UserHandler.GetProfile)
+			users.PUT("/:id", c.UserHandler.UpdateProfile)
+			users.DELETE("/:id", c.UserHandler.DeleteUser)
+			users.GET("", c.UserHandler.ListUsers)
 		}
 	}
 

@@ -224,10 +224,10 @@ func NewBusinessLogicError(operation, reason string, details ...map[string]inter
 // Convenience constructors for common application errors
 func NewDuplicateEntryError(entityType, field string, value interface{}, existingID string) *ConflictError {
 	return &ConflictError{
-		ErrorCode:   CodeDuplicateEntry,
-		Resource:    entityType,
-		Reason:      fmt.Sprintf("%s '%v' already exists", field, value),
-		ExistingID:  existingID,
+		ErrorCode:  CodeDuplicateEntry,
+		Resource:   entityType,
+		Reason:     fmt.Sprintf("%s '%v' already exists", field, value),
+		ExistingID: existingID,
 		Context: map[string]interface{}{
 			field: value,
 		},
