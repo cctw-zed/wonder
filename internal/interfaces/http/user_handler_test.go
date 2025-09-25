@@ -37,14 +37,15 @@ func TestUserHandler_Register_Success(t *testing.T) {
 		ValidUserWithEmail("test@example.com")
 
 	mockUserService.EXPECT().
-		Register(gomock.Any(), "test@example.com", "Test User").
+		Register(gomock.Any(), "test@example.com", "Test User", "password123").
 		Return(expectedUser, nil).
 		Times(1)
 
 	// Setup HTTP request
 	requestBody := RegisterRequest{
-		Email: "test@example.com",
-		Name:  "Test User",
+		Email:    "test@example.com",
+		Name:     "Test User",
+		Password: "password123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -105,8 +106,9 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 		{
 			name: "invalid email format",
 			requestBody: RegisterRequest{
-				Email: "invalid-email",
-				Name:  "Test User",
+				Email:    "invalid-email",
+				Name:     "Test User",
+				Password: "password123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			errorContains:  "Invalid request data",
@@ -114,8 +116,9 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 		{
 			name: "name too short",
 			requestBody: RegisterRequest{
-				Email: "test@example.com",
-				Name:  "A",
+				Email:    "test@example.com",
+				Name:     "A",
+				Password: "password123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			errorContains:  "Invalid request data",
@@ -123,8 +126,9 @@ func TestUserHandler_Register_ValidationErrors(t *testing.T) {
 		{
 			name: "name too long",
 			requestBody: RegisterRequest{
-				Email: "test@example.com",
-				Name:  "This is a very long name that exceeds the maximum length allowed for user names in the system",
+				Email:    "test@example.com",
+				Name:     "This is a very long name that exceeds the maximum length allowed for user names in the system",
+				Password: "password123",
 			},
 			expectedStatus: http.StatusBadRequest,
 			errorContains:  "Invalid request data",
@@ -227,14 +231,15 @@ func TestUserHandler_Register_ServiceErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup expected behavior
 			mockUserService.EXPECT().
-				Register(gomock.Any(), "test@example.com", "Test User").
+				Register(gomock.Any(), "test@example.com", "Test User", "password123").
 				Return(nil, tt.serviceError).
 				Times(1)
 
 			// Setup HTTP request
 			requestBody := RegisterRequest{
-				Email: "test@example.com",
-				Name:  "Test User",
+				Email:    "test@example.com",
+				Name:     "Test User",
+				Password: "password123",
 			}
 			jsonBody, _ := json.Marshal(requestBody)
 
@@ -292,8 +297,8 @@ func TestUserHandler_Register_ContextPropagation(t *testing.T) {
 		ValidUserWithEmail("test@example.com")
 
 	mockUserService.EXPECT().
-		Register(gomock.Any(), "test@example.com", "Test User").
-		DoAndReturn(func(ctx context.Context, email, name string) (*user.User, error) {
+		Register(gomock.Any(), "test@example.com", "Test User", "password123").
+		DoAndReturn(func(ctx context.Context, email, name, password string) (*user.User, error) {
 			// Verify context is properly passed
 			assert.NotNil(t, ctx)
 			return expectedUser, nil
@@ -302,8 +307,9 @@ func TestUserHandler_Register_ContextPropagation(t *testing.T) {
 
 	// Setup HTTP request
 	requestBody := RegisterRequest{
-		Email: "test@example.com",
-		Name:  "Test User",
+		Email:    "test@example.com",
+		Name:     "Test User",
+		Password: "password123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -347,14 +353,15 @@ func BenchmarkUserHandler_Register(b *testing.B) {
 
 	// Setup mock expectations for all iterations
 	mockUserService.EXPECT().
-		Register(gomock.Any(), "bench@example.com", "Bench User").
+		Register(gomock.Any(), "bench@example.com", "Bench User", "benchpass123").
 		Return(expectedUser, nil).
 		AnyTimes()
 
 	// Setup HTTP request
 	requestBody := RegisterRequest{
-		Email: "bench@example.com",
-		Name:  "Bench User",
+		Email:    "bench@example.com",
+		Name:     "Bench User",
+		Password: "benchpass123",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 

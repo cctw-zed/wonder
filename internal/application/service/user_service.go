@@ -38,7 +38,7 @@ func NewUserServiceWithLogger(repo user.UserRepository, idGen id.Generator, log 
 	}
 }
 
-func (s *userService) Register(ctx context.Context, email, name string) (*user.User, error) {
+func (s *userService) Register(ctx context.Context, email, name, password string) (*user.User, error) {
 	s.log.Info(ctx, "registering user", "email", email, "name", name)
 
 	// Business rule validation
@@ -66,6 +66,12 @@ func (s *userService) Register(ctx context.Context, email, name string) (*user.U
 		Name:      name,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
+	}
+
+	// Set password
+	if err := u.SetPassword(ctx, password); err != nil {
+		s.log.Warn(ctx, "password validation failed", "error", err, "user_id", userID)
+		return nil, err
 	}
 
 	if s.log.DebugEnabled() {
@@ -102,6 +108,95 @@ func (s *userService) validateEmail(ctx context.Context, email string) error {
 		return errors.NewInvalidFormatError("email", email, "valid email address")
 	}
 
+	return nil
+}
+
+// Login authenticates user with email and password
+func (s *userService) Login(ctx context.Context, email, password string) (*user.User, error) {
+	s.log.Info(ctx, "authenticating user", "email", email)
+
+	// Validate input
+	if email == "" {
+		return nil, errors.NewRequiredFieldError("email", email)
+	}
+	if password == "" {
+		return nil, errors.NewRequiredFieldError("password", password)
+	}
+
+	// Get user by email
+	u, err := s.repo.GetByEmail(ctx, email)
+	if err != nil {
+		s.log.Error(ctx, "failed to get user by email", "error", err, "email", email)
+		return nil, err
+	}
+	if u == nil {
+		s.log.Warn(ctx, "user not found for email", "email", email)
+		return nil, errors.NewEntityNotFoundError("user", email)
+	}
+
+	// Check password
+	if err := u.CheckPassword(ctx, password); err != nil {
+		s.log.Warn(ctx, "password check failed", "error", err, "user_id", u.ID)
+		return nil, err
+	}
+
+	s.log.Info(ctx, "user authenticated successfully", "user_id", u.ID, "email", email)
+	return u, nil
+}
+
+// ChangePassword changes user password
+func (s *userService) ChangePassword(ctx context.Context, id string, oldPassword, newPassword string) error {
+	s.log.Info(ctx, "changing user password", "user_id", id)
+
+	if id == "" {
+		return errors.NewRequiredFieldError("id", id)
+	}
+	if oldPassword == "" {
+		return errors.NewRequiredFieldError("old_password", oldPassword)
+	}
+	if newPassword == "" {
+		return errors.NewRequiredFieldError("new_password", newPassword)
+	}
+
+	// Get existing user
+	u, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		s.log.Error(ctx, "failed to get user for password change", "error", err, "user_id", id)
+		return err
+	}
+	if u == nil {
+		s.log.Warn(ctx, "user not found for password change", "user_id", id)
+		return errors.NewEntityNotFoundError("user", id)
+	}
+
+	// Verify old password
+	if err := u.CheckPassword(ctx, oldPassword); err != nil {
+		s.log.Warn(ctx, "old password verification failed", "error", err, "user_id", id)
+		return errors.NewUnauthorizedError("password_change", id, "invalid old password")
+	}
+
+	// Set new password
+	if err := u.SetPassword(ctx, newPassword); err != nil {
+		s.log.Warn(ctx, "new password validation failed", "error", err, "user_id", id)
+		return err
+	}
+
+	// Update timestamp
+	u.UpdatedAt = time.Now()
+
+	// Validate the updated aggregate
+	if err := u.Validate(ctx); err != nil {
+		s.log.Warn(ctx, "user aggregate validation failed after password change", "error", err, "user_id", id)
+		return err
+	}
+
+	// Persist the updated user
+	if err := s.repo.Update(ctx, u); err != nil {
+		s.log.Error(ctx, "failed to persist password change", "error", err, "user_id", id)
+		return err
+	}
+
+	s.log.Info(ctx, "user password changed successfully", "user_id", id)
 	return nil
 }
 

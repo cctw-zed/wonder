@@ -41,6 +41,12 @@ log:
   # Service name for logging context
   service_name: "wonder"
 
+jwt:
+  # JWT signing key - should be at least 32 characters long
+  signing_key: "wonder-dev-signing-key-change-in-production-please-make-it-longer"
+  # JWT expiry duration
+  expiry: "24h"
+
 id:
   service_type: "user"
   instance_id: 0

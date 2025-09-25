@@ -26,8 +26,9 @@ func NewUserHandler(userService user.UserService) *UserHandler {
 }
 
 type RegisterRequest struct {
-	Email string `json:"email" binding:"required,email"`
-	Name  string `json:"name" binding:"required,min=2,max=50"`
+	Email    string `json:"email" binding:"required,email"`
+	Name     string `json:"name" binding:"required,min=2,max=50"`
+	Password string `json:"password" binding:"required,min=6"`
 }
 
 func (h *UserHandler) Register(c *gin.Context) {
@@ -49,7 +50,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 
 	// Call application service
-	user, err := h.userService.Register(c.Request.Context(), req.Email, req.Name)
+	user, err := h.userService.Register(c.Request.Context(), req.Email, req.Name, req.Password)
 	if err != nil {
 		// Log the error with structured logging
 		h.errorLogger.LogError(c.Request.Context(), err, traceID, map[string]interface{}{
