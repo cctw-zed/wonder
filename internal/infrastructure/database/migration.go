@@ -29,6 +29,33 @@ func (m *Migrator) MigrateAll() error {
 
 // migrateUserTable creates or updates the users table
 func (m *Migrator) migrateUserTable() error {
+	// Check if the table exists
+	hasTable := m.db.Migrator().HasTable(&user.User{})
+
+	if hasTable {
+		// Check if password_hash column exists
+		hasPasswordHash := m.db.Migrator().HasColumn(&user.User{}, "password_hash")
+
+		if !hasPasswordHash {
+			// First, add the column as nullable
+			if err := m.db.Exec("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL").Error; err != nil {
+				return fmt.Errorf("failed to add password_hash column: %w", err)
+			}
+
+			// Set a default password hash for existing users (they'll need to reset their password)
+			defaultPasswordHash := "$2a$10$CwTycUXWue0Thq9StjUM0uNzZCbF8FFdQLJkN8XWNq3xKWbkjT2Ba" // "changeme"
+			if err := m.db.Exec("UPDATE users SET password_hash = ? WHERE password_hash IS NULL", defaultPasswordHash).Error; err != nil {
+				return fmt.Errorf("failed to set default password hash: %w", err)
+			}
+
+			// Now make it NOT NULL
+			if err := m.db.Exec("ALTER TABLE users ALTER COLUMN password_hash SET NOT NULL").Error; err != nil {
+				return fmt.Errorf("failed to make password_hash NOT NULL: %w", err)
+			}
+		}
+	}
+
+	// Run the normal auto-migration
 	if err := m.db.AutoMigrate(&user.User{}); err != nil {
 		return fmt.Errorf("failed to auto-migrate User model: %w", err)
 	}

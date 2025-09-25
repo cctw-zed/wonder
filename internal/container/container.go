@@ -12,6 +12,7 @@ import (
 	"github.com/cctw-zed/wonder/internal/infrastructure/database"
 	"github.com/cctw-zed/wonder/internal/infrastructure/repository"
 	"github.com/cctw-zed/wonder/internal/interfaces/http"
+	"github.com/cctw-zed/wonder/pkg/jwt"
 	"github.com/cctw-zed/wonder/pkg/logger"
 	"github.com/cctw-zed/wonder/pkg/snowflake/id"
 )
@@ -19,6 +20,7 @@ import (
 type Container struct {
 	Config        *config.Config
 	UserHandler   *http.UserHandler
+	AuthHandler   *http.AuthHandler
 	Database      *database.Connection
 	Logger        logger.Logger
 	nodeAllocator id.NodeIDAllocator // 节点ID分配器，用于优雅关闭时释放资源
@@ -86,11 +88,17 @@ func NewContainerForEnvironment(ctx context.Context, environment string) (*Conta
 	userService := service.NewUserService(userRepo, idGen)
 	userHandler := http.NewUserHandler(userService)
 
+	// Initialize JWT and Auth services
+	tokenService := jwt.NewTokenService(cfg.JWT.SigningKey, cfg.JWT.Expiry)
+	authService := service.NewAuthService(userService, tokenService)
+	authHandler := http.NewAuthHandler(authService)
+
 	appLogger.Info(ctx, "container initialized successfully", "service_name", cfg.App.Name, "version", cfg.App.Version)
 
 	return &Container{
 		Config:        cfg,
 		UserHandler:   userHandler,
+		AuthHandler:   authHandler,
 		Database:      dbConn,
 		Logger:        appLogger,
 		nodeAllocator: allocator,
@@ -157,11 +165,17 @@ func NewContainerWithConfig(ctx context.Context, configPath string) (*Container,
 	userService := service.NewUserService(userRepo, idGen)
 	userHandler := http.NewUserHandler(userService)
 
+	// Initialize JWT and Auth services
+	tokenService := jwt.NewTokenService(cfg.JWT.SigningKey, cfg.JWT.Expiry)
+	authService := service.NewAuthService(userService, tokenService)
+	authHandler := http.NewAuthHandler(authService)
+
 	appLogger.Info(ctx, "container initialized successfully", "service_name", cfg.App.Name, "version", cfg.App.Version)
 
 	return &Container{
 		Config:        cfg,
 		UserHandler:   userHandler,
+		AuthHandler:   authHandler,
 		Database:      dbConn,
 		Logger:        appLogger,
 		nodeAllocator: allocator,

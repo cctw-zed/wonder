@@ -40,6 +40,12 @@ log:
   max_age: 28  # days
   compress: true
 
+jwt:
+  # JWT signing key for testing - shorter expiry for faster tests
+  signing_key: "wonder-test-signing-key-for-testing-environment-only-32-chars-min"
+  # JWT expiry duration for tests
+  expiry: "1h"
+
 id:
   service_type: "user"
   instance_id: 0

@@ -138,7 +138,7 @@ func TestUserService_Register(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMock()
 
-			result, err := service.Register(context.Background(), tt.email, tt.userName)
+			result, err := service.Register(context.Background(), tt.email, tt.userName, "testpassword123")
 
 			if tt.wantErr {
 				require.Error(t, err)

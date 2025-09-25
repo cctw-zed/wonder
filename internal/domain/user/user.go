@@ -7,15 +7,17 @@ import (
 
 	"github.com/cctw-zed/wonder/pkg/errors"
 	"github.com/cctw-zed/wonder/pkg/logger"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // User 用户聚合根
 type User struct {
-	ID        string    `gorm:"primaryKey;type:varchar(64)" json:"id"`
-	Email     string    `gorm:"uniqueIndex:idx_users_email_unique;type:varchar(255);not null" json:"email"`
-	Name      string    `gorm:"type:varchar(100);not null" json:"name"`
-	CreatedAt time.Time `gorm:"not null" json:"created_at"`
-	UpdatedAt time.Time `gorm:"not null" json:"updated_at"`
+	ID           string    `gorm:"primaryKey;type:varchar(64)" json:"id"`
+	Email        string    `gorm:"uniqueIndex:idx_users_email_unique;type:varchar(255);not null" json:"email"`
+	Name         string    `gorm:"type:varchar(100);not null" json:"name"`
+	PasswordHash string    `gorm:"type:varchar(255);not null" json:"-"`
+	CreatedAt    time.Time `gorm:"not null" json:"created_at"`
+	UpdatedAt    time.Time `gorm:"not null" json:"updated_at"`
 }
 
 // UserRepository 用户仓储接口
@@ -30,9 +32,11 @@ type UserRepository interface {
 
 // UserService 用户领域服务接口
 type UserService interface {
-	Register(ctx context.Context, email, name string) (*User, error)
+	Register(ctx context.Context, email, name, password string) (*User, error)
+	Login(ctx context.Context, email, password string) (*User, error)
 	GetProfile(ctx context.Context, id string) (*User, error)
 	UpdateProfile(ctx context.Context, id string, req *UpdateProfileRequest) (*User, error)
+	ChangePassword(ctx context.Context, id string, oldPassword, newPassword string) error
 	ListUsers(ctx context.Context, req *ListUsersRequest) (*ListUsersResponse, error)
 	DeleteUser(ctx context.Context, id string) error
 }
@@ -138,5 +142,59 @@ func (u *User) UpdateEmail(ctx context.Context, email string) error {
 	u.Email = email
 
 	log.Info(ctx, "user email updated", "user_id", u.ID, "old_email", oldEmail, "new_email", email)
+	return nil
+}
+
+// SetPassword sets the user's password (hashes it)
+func (u *User) SetPassword(ctx context.Context, password string) error {
+	log := logger.Get().WithLayer("domain").WithComponent("user")
+
+	if log.DebugEnabled() {
+		log.Debug(ctx, "setting user password", "user_id", u.ID)
+	}
+
+	if password == "" {
+		return errors.NewRequiredFieldError("password", password)
+	}
+
+	if len(password) < 6 {
+		return errors.NewInvalidFormatError("password", password, "at least 6 characters long")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Error(ctx, "failed to hash password", "error", err, "user_id", u.ID)
+		return errors.NewBusinessLogicError("password_hashing", "password hashing failed")
+	}
+
+	u.PasswordHash = string(hashedPassword)
+	log.Info(ctx, "user password updated", "user_id", u.ID)
+	return nil
+}
+
+// CheckPassword verifies the password against the stored hash
+func (u *User) CheckPassword(ctx context.Context, password string) error {
+	log := logger.Get().WithLayer("domain").WithComponent("user")
+
+	if log.DebugEnabled() {
+		log.Debug(ctx, "checking user password", "user_id", u.ID)
+	}
+
+	if password == "" {
+		return errors.NewRequiredFieldError("password", password)
+	}
+
+	if u.PasswordHash == "" {
+		log.Warn(ctx, "user has no password set", "user_id", u.ID)
+		return errors.NewInvalidStateError(errors.CodeBusinessLogicError, "user", u.ID, "password not set")
+	}
+
+	err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
+	if err != nil {
+		log.Warn(ctx, "password verification failed", "user_id", u.ID)
+		return errors.NewUnauthorizedError("password_verification", u.ID, "invalid password")
+	}
+
+	log.Debug(ctx, "password verification successful", "user_id", u.ID)
 	return nil
 }

@@ -51,12 +51,12 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			email := "unique@test.com"
 
 			// First user creation should succeed
-			user1, err := userService.Register(ctx, email, "First User")
+			user1, err := userService.Register(ctx, email, "First User", "password123")
 			require.NoError(t, err)
 			assert.Equal(t, email, user1.Email)
 
 			// Second user with same email should fail
-			_, err = userService.Register(ctx, email, "Second User")
+			_, err = userService.Register(ctx, email, "Second User", "password123")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "already exists")
 		})

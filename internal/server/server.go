@@ -100,6 +100,14 @@ func setupRouter(c *container.Container) *gin.Engine {
 	// API version 1
 	v1 := router.Group("/api/v1")
 	{
+		// Authentication routes
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", c.AuthHandler.Login)
+			auth.POST("/logout", c.AuthHandler.Logout)
+			auth.GET("/me", c.AuthHandler.GetMe)
+		}
+
 		// User routes
 		users := v1.Group("/users")
 		{

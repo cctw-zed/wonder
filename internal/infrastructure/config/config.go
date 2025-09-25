@@ -14,6 +14,7 @@ type Config struct {
 	Database *DatabaseConfig `yaml:"database" mapstructure:"database"`
 	Server   *ServerConfig   `yaml:"server" mapstructure:"server"`
 	Log      *LogConfig      `yaml:"log" mapstructure:"log"`
+	JWT      *JWTConfig       `yaml:"jwt" mapstructure:"jwt"`
 
 	// Domain layer configurations
 	ID *IDConfig `yaml:"id" mapstructure:"id"`
@@ -85,6 +86,12 @@ type EmailConfig struct {
 	Password string `yaml:"password" mapstructure:"password" env:"EMAIL_PASSWORD"`
 }
 
+// JWTConfig represents JWT configuration
+type JWTConfig struct {
+	SigningKey string        `yaml:"signing_key" mapstructure:"signing_key" env:"JWT_SIGNING_KEY"`
+	Expiry     time.Duration `yaml:"expiry" mapstructure:"expiry" env:"JWT_EXPIRY"`
+}
+
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -115,6 +122,10 @@ func DefaultConfig() *Config {
 			MaxBackups:    3,
 			MaxAge:        28, // days
 			Compress:      true,
+		},
+		JWT: &JWTConfig{
+			SigningKey: "your-secret-signing-key-change-this-in-production",
+			Expiry:     24 * time.Hour,
 		},
 		ID: &IDConfig{
 			ServiceType: "user",
@@ -159,6 +170,10 @@ func (c *Config) Validate() error {
 
 	if err := c.ID.Validate(); err != nil {
 		return fmt.Errorf("id config validation failed: %w", err)
+	}
+
+	if err := c.JWT.Validate(); err != nil {
+		return fmt.Errorf("jwt config validation failed: %w", err)
 	}
 
 	return nil
@@ -284,6 +299,20 @@ func (c *IDConfig) Validate() error {
 		return fmt.Errorf("id node_id must be non-negative")
 	}
 
+	return nil
+}
+
+// Validate validates JWT configuration
+func (c *JWTConfig) Validate() error {
+	if c.SigningKey == "" {
+		return fmt.Errorf("jwt signing_key is required")
+	}
+	if len(c.SigningKey) < 32 {
+		return fmt.Errorf("jwt signing_key must be at least 32 characters long")
+	}
+	if c.Expiry <= 0 {
+		return fmt.Errorf("jwt expiry must be positive")
+	}
 	return nil
 }
 
