@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wonder-postgres
+    environment:
+      POSTGRES_DB: wonder
+      POSTGRES_USER: wonder
+      POSTGRES_PASSWORD: wonder
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - wonder-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wonder"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    networks:
+      - wonder-network
+
+  wonder:
+    build:
+      context: .
+    container_name: wonder-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      WONDER_APP_ENVIRONMENT: development
+      WONDER_APP_DEBUG: "false"
+      WONDER_SERVER_HOST: 0.0.0.0
+      WONDER_SERVER_PORT: 8080
+      WONDER_SERVER_ENABLE_CORS: "true"
+      WONDER_DATABASE_HOST: postgres
+      WONDER_DATABASE_PORT: 5432
+      WONDER_DATABASE_USERNAME: wonder
+      WONDER_DATABASE_PASSWORD: wonder
+      WONDER_DATABASE_DATABASE: wonder
+      WONDER_DATABASE_SSL_MODE: disable
+      WONDER_DATABASE_LOG_LEVEL: warn
+      WONDER_LOG_OUTPUT: stdout
+      WONDER_LOG_ENABLE_FILE: "false"
+      WONDER_LOG_LEVEL: info
+      WONDER_JWT_SIGNING_KEY: super-secret-demo-key
+      WONDER_JWT_EXPIRY: 24h
+    ports:
+      - "8080:8080"
+    networks:
+      - wonder-network
+    restart: unless-stopped
+
+networks:
+  wonder-network:
+    driver: bridge
+
+volumes:
+  wonder-postgres-data:
