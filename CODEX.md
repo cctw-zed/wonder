@@ -1,6 +1,6 @@
-# CLAUDE.md
+# CODEX.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (GPT-5 running in the Codex CLI) when working with code in this repository.
 
 ## 🤖 AI Assistant Role
 
@@ -18,17 +18,30 @@ You are a **Senior Go Developer** specializing in:
 - Better collaboration in international teams
 - Standard industry practice for technical documentation
 
+## 🖥️ Codex CLI Operating Rules
+
+- Prefer `["bash", "-lc", "<command>"]` for shell execution and always set the `workdir`.
+- Avoid `cd`; instead, use the `workdir` parameter to select directories.
+- Use `rg`/`rg --files` for searches whenever possible.
+- Default to ASCII when editing or creating files; only use non-ASCII if the file already does.
+- Respect existing uncommitted changes; never revert edits you did not make.
+- Skip the planning tool for straightforward tasks, and never create single-step plans. Update the plan after completing each shared sub-task.
+- Follow the repository’s testing and documentation rules before concluding work.
+
 ## 🔄 AI-Powered Development Workflow
 
 ### Context Management and File References
 
 **Critical**: This project follows an AI-powered development workflow. You MUST reference key documentation files to maintain context and understanding:
 
-#### Required File Reads on Every Session Start:
+#### On-Demand Context Command
+Run `make codex-context` whenever you need to stream the core documentation bundle into your session. The command prints:
 1. `docs/architecture.mermaid` - System architecture and component relationships
 2. `docs/technical.md` - Technical specifications and implementation patterns
 3. `docs/tasks/tasks.md` - Current development tasks and requirements
 4. `docs/status.md` - Project progress and current state
+
+Only invoke the command when you genuinely need a context refresh—do **not** run it automatically for every command execution.
 
 #### File Referencing Strategy:
 When working on tasks, always reference relevant files to maintain context:
@@ -39,17 +52,19 @@ When working on tasks, always reference relevant files to maintain context:
 
 #### Context Restoration Protocol:
 When hitting context limits or starting fresh sessions:
-1. Reference `docs/status.md` to restore current project state
-2. Check `docs/tasks/tasks.md` for active task context and requirements
-3. Review architectural constraints from `docs/architecture.mermaid`
-4. Follow implementation patterns from `docs/technical.md`
+1. Run `make codex-context` if you need to reload the full context bundle
+2. Reference `docs/status.md` to restore current project state
+3. Check `docs/tasks/tasks.md` for active task context and requirements
+4. Review architectural constraints from `docs/architecture.mermaid`
+5. Follow implementation patterns from `docs/technical.md`
 
 ### Documentation-Driven Development Process
 
 #### Before Making Changes
 
 1. **Establish Context Through Documentation**
-   - Read `docs/status.md` for current project status and completed work
+   - Run `make codex-context` if you need to reload the full documentation bundle
+   - Consult `docs/status.md` for current project status and completed work
    - Check `docs/tasks/tasks.md` for current priorities and active tasks
    - Review `docs/technical.md` for implementation guidelines and patterns
    - Study `docs/architecture.mermaid` for system architecture and boundaries
@@ -140,7 +155,7 @@ When hitting context limits or starting fresh sessions:
 
 ## 🛠️ Development Commands
 
-This is a Go project using standard Go toolchain.
+This is a Go project using the standard Go toolchain.
 
 **IMPORTANT**: Before executing any Go commands, you MUST first run `source .envrc` to set up the correct Go environment variables (GOPROXY, GOSUMDB, GO111MODULE). This prevents environment-related issues.
 
@@ -228,7 +243,7 @@ Based on ERROR-001 experience:
    - ✅ GOOD: Update ALL affected tests or document expected failures
 
 5. **Hardcoded Constants vs Defined Constants**:
-   - ❌ BAD: Use magic strings/numbers in code (`"VALIDATION_ERROR"`, `500`, etc.)
+   - ❌ BAD: Use magic strings/numbers in code ("VALIDATION_ERROR", 500, etc.)
    - ✅ GOOD: Define constants first, then use them (`errors.CodeValidationError`, `http.StatusInternalServerError`)
    - **Principle**: Always prefer constants from day one to avoid expensive refactoring later
 

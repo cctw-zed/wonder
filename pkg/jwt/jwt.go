@@ -3,8 +3,8 @@ package jwt
 import (
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/cctw-zed/wonder/pkg/errors"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // TokenService provides JWT token management
