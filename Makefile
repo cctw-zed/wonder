@@ -17,7 +17,7 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME) 
 .DEFAULT_GOAL := build
 
 # Phony targets
-.PHONY: build build-all test run run-test clean kill help
+.PHONY: build build-all test run run-test clean kill help codex-context docker-build docker-up docker-down docker-logs
 
 # Create bin directory
 $(BIN_DIR):
@@ -68,6 +68,30 @@ kill:
 	@pkill -f "make run" 2>/dev/null || true
 	@pkill -f "bin/server" 2>/dev/null || true
 	@echo "✅ Wonder processes terminated!"
+
+codex-context:
+	@echo "Loading core documentation bundle..."
+	@for file in docs/architecture.mermaid docs/technical.md docs/tasks/tasks.md docs/status.md; do \
+		printf '\n===== %s =====\n' "$$file"; \
+		cat "$$file"; \
+		printf '\n'; \
+	done
+
+docker-build:
+	@echo "🐳 Building Docker images..."
+	@docker compose build
+
+docker-up:
+	@echo "🚀 Starting Docker stack..."
+	@docker compose up -d
+
+docker-down:
+	@echo "🛑 Stopping Docker stack..."
+	@docker compose down
+
+docker-logs:
+	@echo "📜 Streaming Docker logs..."
+	@docker compose logs -f
 
 # Show help
 help:

@@ -27,10 +27,10 @@ func TestJWTService_GenerateToken(t *testing.T) {
 	service := NewTokenService(signingKey, expiry)
 
 	tests := []struct {
-		name      string
-		userID    string
-		wantErr   bool
-		errMsg    string
+		name    string
+		userID  string
+		wantErr bool
+		errMsg  string
 	}{
 		{
 			name:    "successful token generation",
@@ -77,10 +77,10 @@ func TestJWTService_ValidateToken(t *testing.T) {
 	require.NotEmpty(t, validToken)
 
 	tests := []struct {
-		name      string
-		token     string
-		wantErr   bool
-		errMsg    string
+		name        string
+		token       string
+		wantErr     bool
+		errMsg      string
 		checkUserID bool
 	}{
 		{

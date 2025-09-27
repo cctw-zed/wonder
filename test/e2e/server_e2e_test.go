@@ -290,8 +290,42 @@ func TestServerE2E(t *testing.T) {
 		require.True(t, ok, "User ID should be a string")
 		assert.NotEmpty(t, userID)
 
-		// Step 2: Get user profile
-		getResp, err := suite.httpClient.Get(suite.baseURL + "/api/v1/users/" + userID)
+		// Step 1.5: Login to get JWT token for authenticated requests
+		loginRequestBody := map[string]string{
+			"email":    "e2e_lifecycle@test.com",
+			"password": "password123",
+		}
+
+		loginJsonBody, err := json.Marshal(loginRequestBody)
+		require.NoError(t, err)
+
+		loginResp, err := suite.httpClient.Post(
+			suite.baseURL+"/api/v1/auth/login",
+			"application/json",
+			bytes.NewBuffer(loginJsonBody),
+		)
+		require.NoError(t, err)
+		defer loginResp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, loginResp.StatusCode)
+
+		var loginResponse map[string]interface{}
+		err = json.NewDecoder(loginResp.Body).Decode(&loginResponse)
+		require.NoError(t, err)
+
+		data, ok := loginResponse["data"].(map[string]interface{})
+		require.True(t, ok, "Login response should contain data")
+
+		accessToken, ok := data["access_token"].(string)
+		require.True(t, ok, "Login response should contain access_token")
+		require.NotEmpty(t, accessToken, "Access token should not be empty")
+
+		// Step 2: Get user profile with authentication
+		getReq, err := http.NewRequest("GET", suite.baseURL+"/api/v1/users/"+userID, nil)
+		require.NoError(t, err)
+		getReq.Header.Set("Authorization", "Bearer "+accessToken)
+
+		getResp, err := suite.httpClient.Do(getReq)
 		require.NoError(t, err)
 		defer getResp.Body.Close()
 
@@ -321,6 +355,7 @@ func TestServerE2E(t *testing.T) {
 		)
 		require.NoError(t, err)
 		updateNameReq.Header.Set("Content-Type", "application/json")
+		updateNameReq.Header.Set("Authorization", "Bearer "+accessToken)
 
 		updateNameResp, err := suite.httpClient.Do(updateNameReq)
 		require.NoError(t, err)
@@ -352,6 +387,7 @@ func TestServerE2E(t *testing.T) {
 		)
 		require.NoError(t, err)
 		updateEmailReq.Header.Set("Content-Type", "application/json")
+		updateEmailReq.Header.Set("Authorization", "Bearer "+accessToken)
 
 		updateEmailResp, err := suite.httpClient.Do(updateEmailReq)
 		require.NoError(t, err)
@@ -384,7 +420,7 @@ func TestServerE2E(t *testing.T) {
 		require.True(t, exists, "Response should contain 'data' field")
 		require.NotNil(t, dataInterface, "Data field should not be nil")
 
-		data, ok := dataInterface.(map[string]interface{})
+		data, ok = dataInterface.(map[string]interface{})
 		require.True(t, ok, "Data field should be an object")
 
 		// Safe type assertion for users field within data
@@ -417,6 +453,7 @@ func TestServerE2E(t *testing.T) {
 			nil,
 		)
 		require.NoError(t, err)
+		deleteReq.Header.Set("Authorization", "Bearer "+accessToken)
 
 		deleteResp, err := suite.httpClient.Do(deleteReq)
 		require.NoError(t, err)
@@ -425,7 +462,11 @@ func TestServerE2E(t *testing.T) {
 		assert.Equal(t, http.StatusOK, deleteResp.StatusCode)
 
 		// Step 7: Verify user is deleted - should return 404
-		verifyDeleteResp, err := suite.httpClient.Get(suite.baseURL + "/api/v1/users/" + userID)
+		verifyDeleteReq, err := http.NewRequest("GET", suite.baseURL+"/api/v1/users/"+userID, nil)
+		require.NoError(t, err)
+		verifyDeleteReq.Header.Set("Authorization", "Bearer "+accessToken)
+
+		verifyDeleteResp, err := suite.httpClient.Do(verifyDeleteReq)
 		require.NoError(t, err)
 		defer verifyDeleteResp.Body.Close()
 
@@ -574,8 +615,57 @@ func TestServerE2E(t *testing.T) {
 	})
 
 	t.Run("Error Handling E2E", func(t *testing.T) {
+		// First create a user and get login token for authenticated requests
+		createBody := map[string]string{
+			"email":    "e2e_error_test@test.com",
+			"name":     "Error Test User",
+			"password": "password123",
+		}
+
+		createJsonBody, err := json.Marshal(createBody)
+		require.NoError(t, err)
+
+		createResp, err := suite.httpClient.Post(
+			suite.baseURL+"/api/v1/users/register",
+			"application/json",
+			bytes.NewBuffer(createJsonBody),
+		)
+		require.NoError(t, err)
+		defer createResp.Body.Close()
+
+		// Login to get token
+		loginRequestBody := map[string]string{
+			"email":    "e2e_error_test@test.com",
+			"password": "password123",
+		}
+
+		loginJsonBody, err := json.Marshal(loginRequestBody)
+		require.NoError(t, err)
+
+		loginResp, err := suite.httpClient.Post(
+			suite.baseURL+"/api/v1/auth/login",
+			"application/json",
+			bytes.NewBuffer(loginJsonBody),
+		)
+		require.NoError(t, err)
+		defer loginResp.Body.Close()
+
+		var loginResponse map[string]interface{}
+		err = json.NewDecoder(loginResp.Body).Decode(&loginResponse)
+		require.NoError(t, err)
+
+		loginData, ok := loginResponse["data"].(map[string]interface{})
+		require.True(t, ok, "Login response should contain data")
+
+		accessToken, ok := loginData["access_token"].(string)
+		require.True(t, ok, "Login response should contain access_token")
+
 		// Test 1: Get non-existent user
-		getResp, err := suite.httpClient.Get(suite.baseURL + "/api/v1/users/nonexistent-id")
+		getReq, err := http.NewRequest("GET", suite.baseURL+"/api/v1/users/nonexistent-id", nil)
+		require.NoError(t, err)
+		getReq.Header.Set("Authorization", "Bearer "+accessToken)
+
+		getResp, err := suite.httpClient.Do(getReq)
 		require.NoError(t, err)
 		defer getResp.Body.Close()
 		assert.Equal(t, http.StatusNotFound, getResp.StatusCode)
@@ -594,6 +684,7 @@ func TestServerE2E(t *testing.T) {
 		)
 		require.NoError(t, err)
 		updateReq.Header.Set("Content-Type", "application/json")
+		updateReq.Header.Set("Authorization", "Bearer "+accessToken)
 
 		updateResp, err := suite.httpClient.Do(updateReq)
 		require.NoError(t, err)
@@ -607,6 +698,7 @@ func TestServerE2E(t *testing.T) {
 			nil,
 		)
 		require.NoError(t, err)
+		deleteReq.Header.Set("Authorization", "Bearer "+accessToken)
 
 		deleteResp, err := suite.httpClient.Do(deleteReq)
 		require.NoError(t, err)
@@ -621,27 +713,27 @@ func TestServerE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		// First create a user to test invalid update
-		createBody := map[string]string{
+		createBody2 := map[string]string{
 			"email":    "e2e_invalid_update@test.com",
 			"name":     "Test User for Invalid Update",
 			"password": "password123",
 		}
-		createJsonBody, err := json.Marshal(createBody)
+		createJsonBody2, err := json.Marshal(createBody2)
 		require.NoError(t, err)
 
-		createResp, err := suite.httpClient.Post(
+		createResp2, err := suite.httpClient.Post(
 			suite.baseURL+"/api/v1/users/register",
 			"application/json",
-			bytes.NewBuffer(createJsonBody),
+			bytes.NewBuffer(createJsonBody2),
 		)
 		require.NoError(t, err)
 
-		var createResponse map[string]interface{}
-		err = json.NewDecoder(createResp.Body).Decode(&createResponse)
-		createResp.Body.Close()
+		var createResponse2 map[string]interface{}
+		err = json.NewDecoder(createResp2.Body).Decode(&createResponse2)
+		createResp2.Body.Close()
 		require.NoError(t, err)
 
-		userInterface, exists := createResponse["user"]
+		userInterface, exists := createResponse2["user"]
 		require.True(t, exists, "Response should contain 'user' field")
 		require.NotNil(t, userInterface, "User field should not be nil")
 
@@ -671,6 +763,7 @@ func TestServerE2E(t *testing.T) {
 		)
 		require.NoError(t, err)
 		invalidUpdateReq.Header.Set("Content-Type", "application/json")
+		invalidUpdateReq.Header.Set("Authorization", "Bearer "+accessToken)
 
 		invalidUpdateResp, err := suite.httpClient.Do(invalidUpdateReq)
 		require.NoError(t, err)

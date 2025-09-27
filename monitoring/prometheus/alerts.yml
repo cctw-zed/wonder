@@ -1,0 +1,120 @@
+groups:
+  - name: wonder.alerts
+    rules:
+      # Service Health Alerts
+      - alert: WonderServiceDown
+        expr: up{job="wonder"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: wonder
+        annotations:
+          summary: "Wonder service is down"
+          description: "Wonder service has been down for more than 1 minute."
+
+      # High Error Rate Alert
+      - alert: WonderHighErrorRate
+        expr: rate(wonder_http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: wonder
+        annotations:
+          summary: "High error rate detected"
+          description: "Wonder service error rate is {{ $value | humanizePercentage }} for the last 5 minutes."
+
+      # High Response Time Alert
+      - alert: WonderHighResponseTime
+        expr: rate(wonder_http_request_duration_seconds_sum[5m]) / rate(wonder_http_request_duration_seconds_count[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          service: wonder
+        annotations:
+          summary: "High response time detected"
+          description: "Wonder service average response time is {{ $value | humanizeDuration }} for the last 5 minutes."
+
+      # High Memory Usage Alert
+      - alert: WonderHighMemoryUsage
+        expr: go_memstats_alloc_bytes / 1024 / 1024 > 512
+        for: 5m
+        labels:
+          severity: warning
+          service: wonder
+        annotations:
+          summary: "High memory usage"
+          description: "Wonder service memory usage is {{ $value | humanize }}MB."
+
+      # High Goroutine Count Alert
+      - alert: WonderHighGoroutineCount
+        expr: go_goroutines > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: wonder
+        annotations:
+          summary: "High goroutine count"
+          description: "Wonder service has {{ $value }} active goroutines."
+
+      # Container Resource Alerts
+      - alert: ContainerHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{name=~"wonder-.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "High CPU usage on container {{ $labels.name }}"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value | humanizePercentage }}."
+
+      - alert: ContainerHighMemoryUsage
+        expr: container_memory_usage_bytes{name=~"wonder-.*"} / container_spec_memory_limit_bytes{name=~"wonder-.*"} * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "High memory usage on container {{ $labels.name }}"
+          description: "Container {{ $labels.name }} memory usage is {{ $value | humanizePercentage }}."
+
+      # Database Connection Alert
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database has been down for more than 1 minute."
+
+      # ELK Stack Health Alerts
+      - alert: ElasticsearchDown
+        expr: up{job="elasticsearch"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: elasticsearch
+        annotations:
+          summary: "Elasticsearch is down"
+          description: "Elasticsearch has been down for more than 2 minutes."
+
+      - alert: LogstashDown
+        expr: up{job="logstash"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: logstash
+        annotations:
+          summary: "Logstash is down"
+          description: "Logstash has been down for more than 2 minutes. Log ingestion may be affected."
+
+      - alert: KibanaDown
+        expr: up{job="kibana"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: kibana
+        annotations:
+          summary: "Kibana is down"
+          description: "Kibana has been down for more than 2 minutes. Log visualization may be affected."

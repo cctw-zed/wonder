@@ -262,7 +262,7 @@ func (r *userRepository) Create(ctx context.Context, user *User) error {
 # Dockerfile
 FROM golang:1.21-alpine
 WORKDIR /app
-COPY . .
+COPY .. .
 RUN go build -o wonder ./cmd/server
 
 # 创建日志目录

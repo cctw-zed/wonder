@@ -6,7 +6,15 @@
       "Bash(go get:*)",
       "Bash(source:*)",
       "Bash(go install:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker logs:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(mkdir:*)",
+      "Bash(docker restart:*)",
+      "Bash(export http_proxy=\"\")"
     ],
     "deny": []
   }
