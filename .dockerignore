@@ -1,0 +1,19 @@
+# Git metadata
+.git
+.gitignore
+
+# Local env files
+.env
+.envrc
+
+# Build artifacts
+bin
+coverage
+logs
+
+# IDE/editor settings
+.idea
+.vscode
+
+# OS files
+.DS_Store
