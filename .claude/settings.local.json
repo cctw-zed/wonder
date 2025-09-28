@@ -14,7 +14,8 @@
       "Bash(git add:*)",
       "Bash(mkdir:*)",
       "Bash(docker restart:*)",
-      "Bash(export http_proxy=\"\")"
+      "Bash(export http_proxy=\"\")",
+      "Bash(npm install)"
     ],
     "deny": []
   }

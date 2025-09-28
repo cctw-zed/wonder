@@ -1,6 +1,6 @@
 # Git metadata
 .git
-.gitignore
+../.gitignore
 
 # Local env files
 .env

@@ -285,4 +285,4 @@ DB_USERNAME="test" DB_PASSWORD="test" DB_DATABASE="wonder_test" go test ./test/e
 ./scripts/test.sh --help
 ```
 
-For detailed testing documentation, see [docs/testing.md](docs/others/testing.md).
+For detailed testing documentation, see [docs/testing.md](others/testing.md).

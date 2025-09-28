@@ -1,331 +1,204 @@
-# CLAUDE.md
+# CLAUDE.md - Wonder Project Root
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working from the project root directory.
 
-## 🤖 AI Assistant Role
+## 🤖 Context-Aware Development
 
-You are a **Senior Go Developer** specializing in:
-- Domain-Driven Design (DDD) architecture
-- Test-Driven Development (TDD)
-- Clean Architecture patterns
-- Go best practices and idioms
-- Database design and optimization
+When working from the root directory, Claude Code should **automatically determine the appropriate development context** based on the files being modified:
 
-## 🌐 Language Policy
+### 📁 File-Based Context Detection
 
-**All documentation and code comments must be written in English**, regardless of the language used in user questions or requests. This ensures:
-- Consistency across all project documentation
-- Better collaboration in international teams
-- Standard industry practice for technical documentation
+#### Backend Development Context
+**Trigger**: When modifying files in `backend/` directory
+**Apply**: Backend development guidelines from `backend/CLAUDE.md`
 
-## 🔄 AI-Powered Development Workflow
+Examples:
+- `backend/internal/**/*.go` → Use Go/DDD development patterns
+- `backend/cmd/**/*.go` → Use Go application patterns
+- `backend/pkg/**/*.go` → Use Go package development patterns
+- `backend/configs/**/*.yaml` → Use backend configuration patterns
+- `backend/docs/**/*.md` → Use backend documentation standards
 
-### Context Management and File References
+#### Frontend Development Context
+**Trigger**: When modifying files in `frontend/` directory
+**Apply**: Frontend development guidelines from `frontend/CLAUDE.md`
 
-**Critical**: This project follows an AI-powered development workflow. You MUST reference key documentation files to maintain context and understanding:
+Examples:
+- `frontend/src/**/*.{js,ts,jsx,tsx}` → Use frontend component patterns
+- `frontend/public/**/*` → Use frontend asset management
+- `frontend/package.json` → Use frontend dependency management
+- `frontend/docs/**/*.md` → Use frontend documentation standards
 
-#### Required File Reads on Every Session Start:
-1. `docs/architecture.mermaid` - System architecture and component relationships
-2. `docs/technical.md` - Technical specifications and implementation patterns
-3. `docs/tasks/tasks.md` - Current development tasks and requirements
-4. `docs/status.md` - Project progress and current state
+#### Project-Level Context
+**Trigger**: When modifying root-level files
+**Apply**: Project-wide guidelines from this file
 
-#### File Referencing Strategy:
-When working on tasks, always reference relevant files to maintain context:
-- Reference `docs/status.md` for current project state and progress tracking
-- Check `docs/tasks/tasks.md` for task context, requirements, and acceptance criteria
-- Review `docs/technical.md` for implementation guidelines and patterns
-- Study `docs/architecture.mermaid` for architectural constraints and boundaries
+Examples:
+- `README.md` → Use project overview documentation standards
+- `docker-compose.yml` → Use full-stack deployment patterns
+- `.gitignore` → Use project-wide ignore patterns
+- Root-level configuration files
 
-#### Context Restoration Protocol:
-When hitting context limits or starting fresh sessions:
-1. Reference `docs/status.md` to restore current project state
-2. Check `docs/tasks/tasks.md` for active task context and requirements
-3. Review architectural constraints from `docs/architecture.mermaid`
-4. Follow implementation patterns from `docs/technical.md`
+## 🔄 Context Switching Rules
 
-### Documentation-Driven Development Process
+### Automatic Context Detection
+```
+IF modifying files in backend/**
+  THEN use backend/CLAUDE.md guidelines
+  AND apply Go development patterns
+  AND follow DDD architecture principles
 
-#### Before Making Changes
+ELSE IF modifying files in frontend/**
+  THEN use frontend/CLAUDE.md guidelines
+  AND apply frontend development patterns
+  AND follow component architecture principles
 
-1. **Establish Context Through Documentation**
-   - Read `docs/status.md` for current project status and completed work
-   - Check `docs/tasks/tasks.md` for current priorities and active tasks
-   - Review `docs/technical.md` for implementation guidelines and patterns
-   - Study `docs/architecture.mermaid` for system architecture and boundaries
-
-2. **Understand Domain and Technical Context**
-   - Identify which DDD layer you're working in
-   - Check existing patterns and conventions in the codebase
-   - Review related test files for behavior specifications
-   - Understand business requirements from domain models
-
-#### During Development
-
-3. **Follow Test-Driven Development (TDD)**
-   - **Write tests first** (highest priority - prevents AI hallucinations)
-   - Define explicit test cases covering edge cases and security concerns
-   - Implement minimal code to pass tests
-   - Refactor while keeping tests green
-   - Ensure >= 80% test coverage
-   - Use tests to validate AI-generated code correctness
-
-4. **Maintain DDD Principles and Architecture**
-   - Keep business logic in domain layer
-   - Use dependency inversion principles
-   - Preserve aggregate boundaries and data consistency
-   - Implement proper error handling and validation
-   - Verify architectural compliance against `docs/architecture.mermaid`
-
-5. **AI Code Quality Guidelines**
-   - Break down complex logic into smaller, testable units
-   - Validate all AI-generated code through comprehensive tests
-   - Avoid global state and race conditions
-   - Implement proper error handling for all scenarios
-   - Use explicit typing to prevent runtime errors
-
-#### After Making Changes
-
-6. **Mandatory Test Execution Rule** 🚨
-   **CRITICAL**: After EVERY code change, you MUST run the complete test suite and ensure all tests pass.
-
-   ```bash
-   source .envrc && go test ./...    # Run ALL tests - MANDATORY
-   ```
-
-   **If ANY tests fail:**
-   - STOP immediately and analyze the failure
-   - Fix the failing tests or underlying code issues
-   - Re-run tests until ALL pass
-   - Only proceed when the entire test suite is green
-
-   **No exceptions**: Code changes are not considered complete until all tests pass.
-
-7. **Additional Quality Checks**
-   ```bash
-   go fmt ./...         # Format code
-   go vet ./...         # Static analysis
-   go mod tidy          # Clean dependencies
-   ```
-
-8. **Update Documentation System**
-   - **ALWAYS** update `docs/status.md` with:
-     - Current progress and completed items
-     - Any new issues encountered
-     - Implementation decisions made
-   - Update `docs/tasks/tasks.md` if tasks completed or status changed
-   - Update `docs/technical.md` if new patterns or guidelines introduced
-   - Add code comments for complex business logic
-   - Update `docs/architecture.mermaid` if system structure changed
-
-## 🤖 AI Development Principles
-
-### The Three Pillars of Effective AI Development:
-1. **Clear System Architecture**: AI needs to understand your system holistically
-2. **Structured Task Management**: Break down work into digestible, testable chunks
-3. **Explicit Development Rules**: Guide AI with clear patterns and conventions
-
-### AI Code Quality Guidelines:
-- **Prevent Hallucinations**: Use TDD to validate all AI-generated code
-- **Avoid Complex Logic**: Break down business logic into smaller, testable units
-- **State Management**: Avoid global state, use proper dependency injection
-- **Error Handling**: Implement comprehensive error handling and validation
-- **Security Focus**: Always include security test cases and validations
-
-### Working with AI Context Limits:
-- Use `docs/status.md` as project memory for context restoration
-- Reference documentation files to quickly restore AI understanding
-- Structure tasks and documentation for easy AI parsing
-- Update status frequently to maintain development continuity
-
-## 🛠️ Development Commands
-
-This is a Go project using standard Go toolchain.
-
-**IMPORTANT**: Before executing any Go commands, you MUST first run `source .envrc` to set up the correct Go environment variables (GOPROXY, GOSUMDB, GO111MODULE). This prevents environment-related issues.
-
-### Command Examples:
-- **Build**: `source .envrc && go build ./cmd/server`
-- **Run**: `source .envrc && go run ./cmd/server/main.go`
-- **Test**: `source .envrc && go test ./...`
-- **Test with coverage**: `source .envrc && go test -coverprofile=coverage.out ./...`
-- **Format**: `source .envrc && go fmt ./...`
-- **Lint**: `source .envrc && go vet ./...`
-- **Dependencies**: `source .envrc && go mod tidy`
-- **Add dependency**: `source .envrc && go get <package>`
-
-## 🚨 Code Change Verification Protocol
-
-**CRITICAL**: When making ANY code changes, you MUST follow this verification protocol to avoid breaking changes:
-
-### 1. Pre-Change Analysis
-Before making any code changes:
-- **Identify Impact Scope**: List all files that might be affected by the change
-- **Locate Related Tests**: Find all test files that test the code being changed
-- **Check Dependencies**: Identify which other modules/packages depend on the changed code
-- **Review Interfaces**: If changing interfaces, find all implementations and usages
-
-### 2. Change Implementation Process
-When implementing changes:
-- **Make Incremental Changes**: Change one logical unit at a time
-- **Update Related Code**: Immediately update all affected code (constructors, method calls, etc.)
-- **Update Tests Simultaneously**: Update test cases as you change the production code
-- **Maintain API Contracts**: If changing public interfaces, update all callers
-- **Constants First**: Define constants before using values, avoid magic strings/numbers from day one
-
-### 3. Mandatory Verification Steps
-After EVERY code change, you MUST run these commands in order:
-
-```bash
-# 1. Verify compilation
-source .envrc && go build ./...
-# If compilation fails, fix ALL errors before proceeding
-
-# 2. Run specific affected tests
-source .envrc && go test ./path/to/changed/package/...
-# If tests fail, fix ALL test failures before proceeding
-
-# 3. Run full test suite
-source .envrc && go test ./...
-# If any tests fail, fix ALL failures or explicitly document why they're expected
-
-# 4. Verify code quality
-source .envrc && go vet ./...
-source .envrc && go fmt ./...
+ELSE IF modifying root-level files
+  THEN use project-level guidelines
+  AND consider full-stack implications
 ```
 
-### 4. Change Documentation Requirements
-For every significant change:
-- **Update Interface Documentation**: Update comments for changed interfaces
-- **Update Error Messages**: If changing error handling, update all related error message tests
-- **Update Status**: Record changes in `docs/status.md`
-- **Update Architecture**: If changing structure, update `docs/architecture.mermaid`
+### Multi-Context Changes
+When making changes that span multiple contexts:
 
-### 5. Rollback Protocol
-If verification fails and cannot be immediately fixed:
-- **Document the Issue**: Record what broke and why in `docs/status.md`
-- **Consider Rollback**: If the change is extensive, consider reverting to the last working state
-- **Create Incremental Plan**: Break the change into smaller, testable increments
+1. **Full-Stack Features**: Apply both backend and frontend guidelines
+2. **API Changes**: Update backend API + frontend integration
+3. **Configuration**: Consider impact on both services
+4. **Documentation**: Update relevant documentation in both contexts
 
-### ⚠️ Common Pitfalls to Avoid
+## 🛠️ Root Directory Commands
 
-Based on ERROR-001 experience:
+### Project-Level Operations
+```bash
+# Full-stack development setup
+docker-compose up -d
 
-1. **Interface Changes Without Implementation Updates**:
-   - ❌ BAD: Change method signature but forget to update all implementations
-   - ✅ GOOD: Use IDE/tools to find all implementations and update them together
+# Run backend from root
+cd backend && source .envrc && go run cmd/server/main.go
 
-2. **Error System Changes Without Test Updates**:
-   - ❌ BAD: Change error message format but leave old test assertions
-   - ✅ GOOD: Update error tests immediately when changing error behavior
+# Run frontend from root (when ready)
+cd frontend && npm run dev
 
-3. **Incomplete Compilation Verification**:
-   - ❌ BAD: Only test changed package, miss dependencies
-   - ✅ GOOD: Always run `go build ./...` to verify entire codebase
+# Full project testing
+cd backend && ./scripts/test.sh all
+cd frontend && npm test
 
-4. **Partial Test Updates**:
-   - ❌ BAD: Update some tests but leave others failing
-   - ✅ GOOD: Update ALL affected tests or document expected failures
+# Project-wide linting/formatting
+cd backend && go fmt ./...
+cd frontend && npm run lint
+```
 
-5. **Hardcoded Constants vs Defined Constants**:
-   - ❌ BAD: Use magic strings/numbers in code (`"VALIDATION_ERROR"`, `500`, etc.)
-   - ✅ GOOD: Define constants first, then use them (`errors.CodeValidationError`, `http.StatusInternalServerError`)
-   - **Principle**: Always prefer constants from day one to avoid expensive refactoring later
+### Development Workflow from Root
+```bash
+# 1. Start services
+docker-compose up -d postgres redis  # Start dependencies
 
-### 📋 Change Checklist Template
+# 2. Backend development
+cd backend/
+source .envrc
+go run cmd/server/main.go
+# (In another terminal for backend changes)
 
-For every significant code change, use this checklist:
+# 3. Frontend development
+cd frontend/
+npm run dev
+# (In another terminal for frontend changes)
+```
 
-- [ ] Identified all files that will be affected
-- [ ] Located and reviewed all related test files
-- [ ] Made changes incrementally with immediate verification
-- [ ] Updated all affected implementations/callers
-- [ ] Updated all related test cases
-- [ ] Verified: No hardcoded constants used (prefer defined constants)
-- [ ] Verified: `go build ./...` passes
-- [ ] Verified: `go test ./...` passes (or documented expected failures)
-- [ ] Verified: `go vet ./...` passes
-- [ ] Updated documentation and comments
-- [ ] Updated `docs/status.md` with change summary
+## 📋 Root-Level Development Guidelines
 
-## 🧪 New API Testing Requirements
+### File Modification Guidelines
 
-**CRITICAL**: When adding new API endpoints, you MUST follow this comprehensive testing protocol:
+#### When modifying `backend/**` files:
+- **MUST** follow backend/CLAUDE.md guidelines
+- **MUST** run backend tests: `cd backend && go test ./...`
+- **MUST** ensure Go code compilation: `cd backend && go build ./...`
+- **SHOULD** verify backend service still runs properly
 
-### Mandatory Testing for New Endpoints:
-1. **E2E Tests**: Add corresponding end-to-end test cases in `test/e2e/`
-2. **Integration Tests**: Add integration test cases in `test/integration/`
-3. **API Documentation**: Add endpoint examples to `api.http` file
+#### When modifying `frontend/**` files:
+- **MUST** follow frontend/CLAUDE.md guidelines
+- **MUST** run frontend tests: `cd frontend && npm test`
+- **MUST** ensure frontend builds: `cd frontend && npm run build`
+- **SHOULD** verify frontend app still runs properly
 
-### Testing Protocol Steps:
-1. **Implement the new endpoint** in handlers
-2. **Add E2E test cases** covering:
-   - Success scenarios with valid inputs
-   - Error scenarios (validation failures, authentication errors, etc.)
-   - Edge cases and boundary conditions
-3. **Add Integration test cases** covering:
-   - Service layer integration
-   - Database interactions
-   - External dependencies
-4. **Update `api.http`** with:
-   - Request examples for all endpoints
-   - Authentication headers where required
-   - Sample request/response bodies
-   - Different scenarios (success/error cases)
-5. **Run complete test suite** to ensure all tests pass
-6. **Verify API documentation** by testing requests in `api.http`
+#### When modifying root files:
+- **MUST** consider impact on both backend and frontend
+- **MUST** update documentation if architecture changes
+- **SHOULD** test full-stack integration if needed
 
-### File Structure for Tests:
-- **E2E Tests**: `test/e2e/*_e2e_test.go`
-- **Integration Tests**: `test/integration/*_integration_test.go`
-- **API Documentation**: `api.http`
+### Cross-Context Changes
 
-This ensures comprehensive coverage and maintainable API documentation for all endpoints.
+#### API Development Workflow:
+1. **Backend**: Add/modify API endpoints in backend/
+2. **Testing**: Test API with backend/api.http
+3. **Frontend**: Update frontend API integration
+4. **Integration**: Test end-to-end functionality
+5. **Documentation**: Update both backend and frontend docs
 
-## 🎯 Current Focus and Task Management
+#### Configuration Changes:
+1. **Environment**: Update relevant config files
+2. **Backend**: Update backend configs if needed
+3. **Frontend**: Update frontend configs if needed
+4. **Docker**: Update docker-compose.yml if needed
+5. **Documentation**: Update setup instructions
 
-**Always check `docs/tasks/tasks.md` for the latest priorities and active tasks.**
+## 🎯 Context-Specific Task Management
 
-### Task-Driven Development Approach:
-1. **Reference Active Tasks**: Check `docs/tasks/tasks.md` for current sprint tasks
-2. **Update Progress**: Mark tasks as in-progress in `docs/status.md`
-3. **Follow Requirements**: Implement according to acceptance criteria
-4. **Track Completion**: Update both task and status files upon completion
+### Backend Tasks (from root):
+```bash
+# Navigate to backend context
+cd backend/
 
-### Context-Aware Development:
-- Use file references to maintain context across sessions
-- Document implementation decisions for future reference
-- Keep status tracking updated for AI context restoration
+# Apply backend development workflow
+source .envrc
+# ... follow backend/CLAUDE.md guidelines
+```
 
-## 📁 Key Directory Structure
+### Frontend Tasks (from root):
+```bash
+# Navigate to frontend context
+cd frontend/
 
-- `cmd/server/` - Application entry point
-- `internal/domain/` - Domain layer (entities, aggregates, domain services)
-- `internal/application/` - Application layer (use cases, application services)
-- `internal/infrastructure/` - Infrastructure layer (repositories, external services)
-- `internal/interfaces/` - Interface layer (HTTP handlers, DTOs)
-- `pkg/` - Shared packages
-- `docs/` - Project documentation
+# Apply frontend development workflow
+# ... follow frontend/CLAUDE.md guidelines
+```
 
-## 🔄 Documentation Maintenance and AI Context
+### Full-Stack Tasks:
+- Use project-level perspective
+- Consider both services simultaneously
+- Apply integration testing approaches
+- Update project-wide documentation
 
-### Documentation Structure for AI Understanding:
-- **`docs/status.md`**: Project progress tracking and current state (critical for context restoration)
-- **`docs/tasks/tasks.md`**: Task breakdown and requirements (source of truth for current work)
-- **`docs/technical.md`**: Implementation guidelines and patterns (technical reference)
-- **`docs/architecture.mermaid`**: System architecture visualization (architectural constraints)
+## 🚨 Important Context Rules
 
-### Maintenance Guidelines:
-- Keep all documentation in `docs/` directory current and synchronized
-- Update task status in real-time as work progresses
-- Document architectural decisions and their rationale
-- Maintain code examples and patterns in technical docs
-- Reference file paths with line numbers when discussing code
-- Use documentation files as context anchors for AI sessions
-- Move completed tasks into `docs/tasks/archive.md`; keep `docs/tasks/tasks.md` and `docs/status.md` focused on active work
+### File Path Detection
+Claude Code should automatically detect context based on file paths:
 
-### AI Context Management:
-- Reference documentation files to restore context after limits
-- Use status tracking to maintain development continuity
-- Update documentation proactively to support future AI sessions
-- Structure information for easy AI parsing and understanding
+- **`backend/**`** → Auto-apply backend development standards
+- **`frontend/**`** → Auto-apply frontend development standards
+- **Root files** → Apply project-level standards
+
+### Testing Requirements
+When modifying files from root directory:
+
+```bash
+# Backend changes - run backend tests
+cd backend && source .envrc && go test ./...
+
+# Frontend changes - run frontend tests
+cd frontend && npm test
+
+# Full-stack changes - run both test suites
+cd backend && source .envrc && go test ./...
+cd frontend && npm test
+```
+
+### Documentation Updates
+- **Backend changes** → Update backend docs
+- **Frontend changes** → Update frontend docs
+- **Architecture changes** → Update root README.md
+- **API changes** → Update both backend/api.http and frontend API docs
+
+---
+
+**Key Principle**: Always apply the most specific development context available based on the files being modified, while maintaining awareness of full-stack implications.
