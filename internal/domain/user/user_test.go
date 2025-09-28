@@ -1,11 +1,14 @@
 package user
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func TestUser_Creation(t *testing.T) {
@@ -70,6 +73,8 @@ func TestUser_Creation(t *testing.T) {
 }
 
 func TestUser_Validation(t *testing.T) {
+	// Initialize logger for tests
+	logger.Initialize()
 	tests := []struct {
 		name    string
 		user    *User
@@ -97,7 +102,7 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "user ID is required",
+			errMsg:  "id is required",
 		},
 		{
 			name: "empty email",
@@ -109,7 +114,7 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "user email is required",
+			errMsg:  "email is required",
 		},
 		{
 			name: "invalid email format",
@@ -121,7 +126,7 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "invalid email format",
+			errMsg:  "invalid format for email, expected: valid email address",
 		},
 		{
 			name: "empty name",
@@ -133,13 +138,13 @@ func TestUser_Validation(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 			wantErr: true,
-			errMsg:  "user name is required",
+			errMsg:  "name is required",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.user.Validate()
+			err := tt.user.Validate(context.Background())
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -162,7 +167,7 @@ func TestUser_UpdateName(t *testing.T) {
 	originalUpdatedAt := user.UpdatedAt
 	newName := "New Name"
 
-	err := user.UpdateName(newName)
+	err := user.UpdateName(context.Background(), newName)
 	require.NoError(t, err)
 
 	assert.Equal(t, newName, user.Name)
@@ -180,16 +185,16 @@ func TestUser_UpdateName_Invalid(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		newName  string
-		wantErr  bool
-		errMsg   string
+		name    string
+		newName string
+		wantErr bool
+		errMsg  string
 	}{
 		{
 			name:    "empty name",
 			newName: "",
 			wantErr: true,
-			errMsg:  "name cannot be empty",
+			errMsg:  "name is required",
 		},
 		{
 			name:    "valid name",
@@ -200,7 +205,7 @@ func TestUser_UpdateName_Invalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := user.UpdateName(tt.newName)
+			err := user.UpdateName(context.Background(), tt.newName)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -255,6 +260,163 @@ func TestUser_IsEmailValid(t *testing.T) {
 			user := &User{Email: tt.email}
 			got := user.IsEmailValid()
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestUser_UpdateEmail(t *testing.T) {
+	// Initialize logger for testing
+	logger.InitializeWithConfig(logger.LogConfig{
+		Level:  "debug",
+		Format: "text",
+		Output: "stdout",
+	})
+
+	tests := []struct {
+		name        string
+		user        *User
+		newEmail    string
+		wantErr     bool
+		expectedErr string
+	}{
+		{
+			name: "valid email update",
+			user: &User{
+				ID:    "user123",
+				Email: "old@example.com",
+				Name:  "Test User",
+			},
+			newEmail: "new@example.com",
+			wantErr:  false,
+		},
+		{
+			name: "empty email should fail",
+			user: &User{
+				ID:    "user123",
+				Email: "old@example.com",
+				Name:  "Test User",
+			},
+			newEmail:    "",
+			wantErr:     true,
+			expectedErr: "email is required",
+		},
+		{
+			name: "invalid email format should fail",
+			user: &User{
+				ID:    "user123",
+				Email: "old@example.com",
+				Name:  "Test User",
+			},
+			newEmail:    "invalid-email",
+			wantErr:     true,
+			expectedErr: "invalid format for email",
+		},
+		{
+			name: "email with special characters",
+			user: &User{
+				ID:    "user123",
+				Email: "old@example.com",
+				Name:  "Test User",
+			},
+			newEmail: "test+special@example.co.uk",
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			oldEmail := tt.user.Email
+
+			err := tt.user.UpdateEmail(ctx, tt.newEmail)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+				// Email should not be changed on error
+				assert.Equal(t, oldEmail, tt.user.Email)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.newEmail, tt.user.Email)
+			}
+		})
+	}
+}
+
+func TestUser_UpdateNameAdvanced(t *testing.T) {
+	// Initialize logger for testing
+	logger.InitializeWithConfig(logger.LogConfig{
+		Level:  "debug",
+		Format: "text",
+		Output: "stdout",
+	})
+
+	tests := []struct {
+		name        string
+		user        *User
+		newName     string
+		wantErr     bool
+		expectedErr string
+	}{
+		{
+			name: "valid name update",
+			user: &User{
+				ID:    "user123",
+				Email: "test@example.com",
+				Name:  "Old Name",
+			},
+			newName: "New Name",
+			wantErr: false,
+		},
+		{
+			name: "empty name should fail",
+			user: &User{
+				ID:    "user123",
+				Email: "test@example.com",
+				Name:  "Old Name",
+			},
+			newName:     "",
+			wantErr:     true,
+			expectedErr: "name is required",
+		},
+		{
+			name: "name with special characters",
+			user: &User{
+				ID:    "user123",
+				Email: "test@example.com",
+				Name:  "Old Name",
+			},
+			newName: "José María García-López",
+			wantErr: false,
+		},
+		{
+			name: "very long name",
+			user: &User{
+				ID:    "user123",
+				Email: "test@example.com",
+				Name:  "Old Name",
+			},
+			newName: "This is a very long name that might be used for testing purposes and should be handled properly",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			oldName := tt.user.Name
+
+			err := tt.user.UpdateName(ctx, tt.newName)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+				// Name should not be changed on error
+				assert.Equal(t, oldName, tt.user.Name)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.newName, tt.user.Name)
+			}
 		})
 	}
 }

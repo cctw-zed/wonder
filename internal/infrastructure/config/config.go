@@ -14,6 +14,7 @@ type Config struct {
 	Database *DatabaseConfig `yaml:"database" mapstructure:"database"`
 	Server   *ServerConfig   `yaml:"server" mapstructure:"server"`
 	Log      *LogConfig      `yaml:"log" mapstructure:"log"`
+	JWT      *JWTConfig       `yaml:"jwt" mapstructure:"jwt"`
 
 	// Domain layer configurations
 	ID *IDConfig `yaml:"id" mapstructure:"id"`
@@ -42,11 +43,17 @@ type ServerConfig struct {
 
 // LogConfig represents logging configuration
 type LogConfig struct {
-	Level      string `yaml:"level" mapstructure:"level" env:"LOG_LEVEL"`
-	Format     string `yaml:"format" mapstructure:"format" env:"LOG_FORMAT"`
-	Output     string `yaml:"output" mapstructure:"output" env:"LOG_OUTPUT"`
-	EnableFile bool   `yaml:"enable_file" mapstructure:"enable_file" env:"LOG_ENABLE_FILE"`
-	FilePath   string `yaml:"file_path" mapstructure:"file_path" env:"LOG_FILE_PATH"`
+	Level         string `yaml:"level" mapstructure:"level" env:"LOG_LEVEL"`
+	Format        string `yaml:"format" mapstructure:"format" env:"LOG_FORMAT"`
+	Output        string `yaml:"output" mapstructure:"output" env:"LOG_OUTPUT"`
+	EnableFile    bool   `yaml:"enable_file" mapstructure:"enable_file" env:"LOG_ENABLE_FILE"`
+	FilePath      string `yaml:"file_path" mapstructure:"file_path" env:"LOG_FILE_PATH"`
+	ServiceName   string `yaml:"service_name" mapstructure:"service_name" env:"LOG_SERVICE_NAME"`
+	EnableTracing bool   `yaml:"enable_tracing" mapstructure:"enable_tracing" env:"LOG_ENABLE_TRACING"`
+	MaxFileSize   int    `yaml:"max_file_size" mapstructure:"max_file_size" env:"LOG_MAX_FILE_SIZE"`
+	MaxBackups    int    `yaml:"max_backups" mapstructure:"max_backups" env:"LOG_MAX_BACKUPS"`
+	MaxAge        int    `yaml:"max_age" mapstructure:"max_age" env:"LOG_MAX_AGE"`
+	Compress      bool   `yaml:"compress" mapstructure:"compress" env:"LOG_COMPRESS"`
 }
 
 // IDConfig represents ID generation configuration
@@ -79,6 +86,12 @@ type EmailConfig struct {
 	Password string `yaml:"password" mapstructure:"password" env:"EMAIL_PASSWORD"`
 }
 
+// JWTConfig represents JWT configuration
+type JWTConfig struct {
+	SigningKey string        `yaml:"signing_key" mapstructure:"signing_key" env:"JWT_SIGNING_KEY"`
+	Expiry     time.Duration `yaml:"expiry" mapstructure:"expiry" env:"JWT_EXPIRY"`
+}
+
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -98,11 +111,21 @@ func DefaultConfig() *Config {
 		},
 		Database: DefaultDatabaseConfig(),
 		Log: &LogConfig{
-			Level:      "info",
-			Format:     "json",
-			Output:     "stdout",
-			EnableFile: false,
-			FilePath:   "logs/app.log",
+			Level:         "info",
+			Format:        "json",
+			Output:        "stdout",
+			EnableFile:    false,
+			FilePath:      "logs/app.log",
+			ServiceName:   "wonder",
+			EnableTracing: true,
+			MaxFileSize:   100, // MB
+			MaxBackups:    3,
+			MaxAge:        28, // days
+			Compress:      true,
+		},
+		JWT: &JWTConfig{
+			SigningKey: "your-secret-signing-key-change-this-in-production",
+			Expiry:     24 * time.Hour,
 		},
 		ID: &IDConfig{
 			ServiceType: "user",
@@ -147,6 +170,10 @@ func (c *Config) Validate() error {
 
 	if err := c.ID.Validate(); err != nil {
 		return fmt.Errorf("id config validation failed: %w", err)
+	}
+
+	if err := c.JWT.Validate(); err != nil {
+		return fmt.Errorf("jwt config validation failed: %w", err)
 	}
 
 	return nil
@@ -215,7 +242,7 @@ func (c *LogConfig) Validate() error {
 		return fmt.Errorf("log format must be one of: %v", validFormats)
 	}
 
-	validOutputs := []string{"stdout", "stderr", "file"}
+	validOutputs := []string{"stdout", "stderr", "file", "both"}
 	valid = false
 	for _, output := range validOutputs {
 		if c.Output == output {
@@ -229,6 +256,22 @@ func (c *LogConfig) Validate() error {
 
 	if c.EnableFile && c.FilePath == "" {
 		return fmt.Errorf("log file_path is required when enable_file is true")
+	}
+
+	if c.ServiceName == "" {
+		return fmt.Errorf("log service_name is required")
+	}
+
+	if c.MaxFileSize <= 0 {
+		return fmt.Errorf("log max_file_size must be positive")
+	}
+
+	if c.MaxBackups < 0 {
+		return fmt.Errorf("log max_backups must be non-negative")
+	}
+
+	if c.MaxAge < 0 {
+		return fmt.Errorf("log max_age must be non-negative")
 	}
 
 	return nil
@@ -256,6 +299,20 @@ func (c *IDConfig) Validate() error {
 		return fmt.Errorf("id node_id must be non-negative")
 	}
 
+	return nil
+}
+
+// Validate validates JWT configuration
+func (c *JWTConfig) Validate() error {
+	if c.SigningKey == "" {
+		return fmt.Errorf("jwt signing_key is required")
+	}
+	if len(c.SigningKey) < 32 {
+		return fmt.Errorf("jwt signing_key must be at least 32 characters long")
+	}
+	if c.Expiry <= 0 {
+		return fmt.Errorf("jwt expiry must be positive")
+	}
 	return nil
 }
 

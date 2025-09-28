@@ -1,11 +1,14 @@
 package builder
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func TestUserBuilder_Default(t *testing.T) {
@@ -36,9 +39,11 @@ func TestUserBuilder_WithCustomValues(t *testing.T) {
 }
 
 func TestUserBuilder_Valid(t *testing.T) {
+	// Initialize logger for tests
+	logger.Initialize()
 	user := NewUserBuilder().Valid().Build()
 
-	err := user.Validate()
+	err := user.Validate(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, "valid-id-123", user.ID)
@@ -49,17 +54,17 @@ func TestUserBuilder_Valid(t *testing.T) {
 func TestUserBuilder_Invalid(t *testing.T) {
 	user := NewUserBuilder().Invalid().Build()
 
-	err := user.Validate()
+	err := user.Validate(context.Background())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "user ID is required")
+	assert.Contains(t, err.Error(), "id is required")
 }
 
 func TestUserBuilder_WithInvalidEmail(t *testing.T) {
 	user := NewUserBuilder().WithInvalidEmail().Build()
 
-	err := user.Validate()
+	err := user.Validate(context.Background())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid email format")
+	assert.Contains(t, err.Error(), "invalid format for email, expected: valid email address")
 }
 
 func TestUserBuilder_BuildMany(t *testing.T) {
@@ -94,7 +99,7 @@ func TestUserBuilderForTesting_ValidUser(t *testing.T) {
 	testBuilder := NewUserBuilderForTesting()
 	user := testBuilder.ValidUser()
 
-	err := user.Validate()
+	err := user.Validate(context.Background())
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, user.ID)
@@ -108,7 +113,7 @@ func TestUserBuilderForTesting_ValidUserWithEmail(t *testing.T) {
 
 	user := testBuilder.ValidUserWithEmail(email)
 
-	err := user.Validate()
+	err := user.Validate(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, email, user.Email)
 }
@@ -119,7 +124,7 @@ func TestUserBuilderForTesting_ValidUserWithID(t *testing.T) {
 
 	user := testBuilder.ValidUserWithID(id)
 
-	err := user.Validate()
+	err := user.Validate(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, id, user.ID)
 }
@@ -129,15 +134,15 @@ func TestUserBuilderForTesting_InvalidUsers(t *testing.T) {
 
 	t.Run("empty fields", func(t *testing.T) {
 		user := testBuilder.InvalidUserEmptyFields()
-		err := user.Validate()
+		err := user.Validate(context.Background())
 		require.Error(t, err)
 	})
 
 	t.Run("bad email", func(t *testing.T) {
 		user := testBuilder.InvalidUserBadEmail()
-		err := user.Validate()
+		err := user.Validate(context.Background())
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid email format")
+		assert.Contains(t, err.Error(), "invalid format for email, expected: valid email address")
 	})
 }
 
@@ -154,6 +159,6 @@ func TestUserBuilderForTesting_UserFromRegistration(t *testing.T) {
 	assert.False(t, user.CreatedAt.IsZero())
 	assert.False(t, user.UpdatedAt.IsZero())
 
-	err := user.Validate()
+	err := user.Validate(context.Background())
 	require.NoError(t, err)
 }

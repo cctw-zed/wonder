@@ -12,6 +12,7 @@ import (
 	"github.com/cctw-zed/wonder/internal/domain/user"
 	"github.com/cctw-zed/wonder/internal/infrastructure/repository"
 	"github.com/cctw-zed/wonder/internal/testutil/builder"
+	"github.com/cctw-zed/wonder/pkg/logger"
 	idMocks "github.com/cctw-zed/wonder/pkg/snowflake/id/mocks"
 
 	"go.uber.org/mock/gomock"
@@ -22,6 +23,9 @@ import (
 // TestUserAggregateIntegrity verifies that User aggregate maintains business invariants
 // and data consistency across all operations
 func TestUserAggregateIntegrity(t *testing.T) {
+	// Initialize logger for tests
+	logger.Initialize()
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -47,12 +51,12 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			email := "unique@test.com"
 
 			// First user creation should succeed
-			user1, err := userService.Register(ctx, email, "First User")
+			user1, err := userService.Register(ctx, email, "First User", "password123")
 			require.NoError(t, err)
 			assert.Equal(t, email, user1.Email)
 
 			// Second user with same email should fail
-			_, err = userService.Register(ctx, email, "Second User")
+			_, err = userService.Register(ctx, email, "Second User", "password123")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "already exists")
 		})
@@ -80,7 +84,7 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			assert.False(t, retrieved.UpdatedAt.IsZero())
 
 			// Verify entity still validates after retrieval
-			err = retrieved.Validate()
+			err = retrieved.Validate(context.Background())
 			require.NoError(t, err)
 		})
 
@@ -103,7 +107,7 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			time.Sleep(time.Millisecond)
 
 			// Update user name
-			err = initialUser.UpdateName("Updated Name")
+			err = initialUser.UpdateName(context.Background(), "Updated Name")
 			require.NoError(t, err)
 
 			// Save changes
@@ -118,10 +122,10 @@ func TestUserAggregateIntegrity(t *testing.T) {
 			assert.Equal(t, "update@test.com", updated.Email) // Email unchanged
 			// Compare timestamps by truncating to microseconds to handle database precision
 			assert.True(t, originalCreatedAt.Truncate(time.Microsecond).Equal(updated.CreatedAt.Truncate(time.Microsecond))) // CreatedAt unchanged
-			assert.True(t, updated.UpdatedAt.After(originalUpdatedAt.Truncate(time.Microsecond))) // UpdatedAt changed
+			assert.True(t, updated.UpdatedAt.After(originalUpdatedAt.Truncate(time.Microsecond)))                            // UpdatedAt changed
 
 			// Verify entity still validates after update
-			err = updated.Validate()
+			err = updated.Validate(context.Background())
 			require.NoError(t, err)
 		})
 

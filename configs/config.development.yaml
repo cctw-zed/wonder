@@ -28,11 +28,24 @@ database:
   log_level: "info"
 
 log:
-  level: "debug"
-  format: "console"
-  output: "stdout"
-  enable_file: false
-  file_path: "logs/app.log"
+  # Log level: debug, info, warn, error
+  level: "info"
+  # Log format: json, text
+  format: "json"
+  # Log output: stdout, file, both
+  output: "file"
+  # Path to log file (required when output is "file" or "both")
+  file_path: "./logs/wonder.log"
+  # Enable file logging (optional, defaults to false)
+  enable_file: true
+  # Service name for logging context
+  service_name: "wonder"
+
+jwt:
+  # JWT signing key - should be at least 32 characters long
+  signing_key: "wonder-dev-signing-key-change-in-production-please-make-it-longer"
+  # JWT expiry duration
+  expiry: "24h"
 
 id:
   service_type: "user"

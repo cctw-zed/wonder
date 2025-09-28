@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/cctw-zed/wonder/internal/container"
+	"github.com/cctw-zed/wonder/internal/middleware"
 )
 
 // Server represents the HTTP server
@@ -65,7 +66,10 @@ func (s *Server) GetAddr() string {
 func setupRouter(c *container.Container) *gin.Engine {
 	router := gin.New()
 
-	// Add middleware
+	// Add TraceID middleware first to ensure all requests have trace IDs
+	router.Use(middleware.TraceIDMiddleware())
+
+	// Use default Gin middleware for now
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
@@ -96,11 +100,22 @@ func setupRouter(c *container.Container) *gin.Engine {
 	// API version 1
 	v1 := router.Group("/api/v1")
 	{
+		// Authentication routes
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", c.AuthHandler.Login)
+			auth.POST("/logout", c.AuthHandler.Logout)
+			auth.GET("/me", c.AuthHandler.GetMe)
+		}
+
 		// User routes
 		users := v1.Group("/users")
 		{
 			users.POST("/register", c.UserHandler.Register)
-			// Add more user routes as needed
+			users.GET("/:id", c.UserHandler.GetProfile)
+			users.PUT("/:id", c.UserHandler.UpdateProfile)
+			users.DELETE("/:id", c.UserHandler.DeleteUser)
+			users.GET("", c.UserHandler.ListUsers)
 		}
 	}
 

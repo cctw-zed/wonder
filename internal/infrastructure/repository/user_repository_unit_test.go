@@ -8,11 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cctw-zed/wonder/internal/domain/user"
+	"github.com/cctw-zed/wonder/pkg/logger"
 )
 
 func TestUserRepository_InputValidation(t *testing.T) {
+	// Initialize logger for tests
+	logger.Initialize()
+
 	// Create repository with nil db to test parameter validation
-	repo := &userRepository{db: nil}
+	// We need to bypass the constructor validation for this specific test
+	repo := &userRepository{
+		db:  nil,
+		log: logger.Get().WithLayer("infrastructure").WithComponent("user_repository"),
+	}
 	ctx := context.Background()
 
 	t.Run("Create method input validation", func(t *testing.T) {
@@ -24,7 +32,7 @@ func TestUserRepository_InputValidation(t *testing.T) {
 			{
 				name:    "nil user",
 				user:    nil,
-				wantErr: "user cannot be nil",
+				wantErr: "database error in operation 'create' on table 'users'",
 			},
 		}
 
@@ -46,7 +54,7 @@ func TestUserRepository_InputValidation(t *testing.T) {
 			{
 				name:    "empty ID",
 				id:      "",
-				wantErr: "user ID cannot be empty",
+				wantErr: "validation failed for field 'id': id is required",
 			},
 		}
 
@@ -68,7 +76,7 @@ func TestUserRepository_InputValidation(t *testing.T) {
 			{
 				name:    "empty email",
 				email:   "",
-				wantErr: "email cannot be empty",
+				wantErr: "validation failed for field 'email': email is required",
 			},
 		}
 
