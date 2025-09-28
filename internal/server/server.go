@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/cctw-zed/wonder/internal/container"
 	"github.com/cctw-zed/wonder/internal/middleware"
@@ -72,6 +73,10 @@ func setupRouter(c *container.Container) *gin.Engine {
 	// Use default Gin middleware for now
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	router.Use(middleware.MetricsMiddleware())
+
+	// Expose Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Add CORS middleware if enabled
 	if c.Config.Server.EnableCORS {
@@ -100,22 +105,22 @@ func setupRouter(c *container.Container) *gin.Engine {
 	// API version 1
 	v1 := router.Group("/api/v1")
 	{
-		// Authentication routes
+		// Authentication routes (public endpoints)
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/login", c.AuthHandler.Login)
-			auth.POST("/logout", c.AuthHandler.Logout)
-			auth.GET("/me", c.AuthHandler.GetMe)
+			auth.POST("/login", c.AuthHandler.Login)                                   // Public: login
+			auth.POST("/logout", c.AuthMiddleware.RequireAuth(), c.AuthHandler.Logout) // Protected: logout requires valid token
+			auth.GET("/me", c.AuthMiddleware.RequireAuth(), c.AuthHandler.GetMe)       // Protected: get current user
 		}
 
 		// User routes
 		users := v1.Group("/users")
 		{
-			users.POST("/register", c.UserHandler.Register)
-			users.GET("/:id", c.UserHandler.GetProfile)
-			users.PUT("/:id", c.UserHandler.UpdateProfile)
-			users.DELETE("/:id", c.UserHandler.DeleteUser)
-			users.GET("", c.UserHandler.ListUsers)
+			users.POST("/register", c.UserHandler.Register)                                // Public: registration
+			users.GET("", c.AuthMiddleware.OptionalAuth(), c.UserHandler.ListUsers)        // Optional auth: may filter results based on user role
+			users.GET("/:id", c.AuthMiddleware.RequireAuth(), c.UserHandler.GetProfile)    // Protected: get user profile
+			users.PUT("/:id", c.AuthMiddleware.RequireAuth(), c.UserHandler.UpdateProfile) // Protected: update profile
+			users.DELETE("/:id", c.AuthMiddleware.RequireAuth(), c.UserHandler.DeleteUser) // Protected: delete user
 		}
 	}
 

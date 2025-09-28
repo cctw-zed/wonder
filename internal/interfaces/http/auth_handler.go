@@ -68,38 +68,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // Logout invalidates the current user's token
+// Note: This endpoint is protected by auth middleware, so token is already validated
 func (h *AuthHandler) Logout(c *gin.Context) {
 	traceID := middleware.GetTraceIDFromContext(c.Request.Context())
 
-	// Extract token from Authorization header
+	// Extract token from Authorization header (already validated by middleware)
 	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		httpErr := errors.NewHTTPError(
-			http.StatusUnauthorized,
-			errors.CodeUnauthorized,
-			"Authorization header required",
-			map[string]interface{}{"header": "Authorization"},
-			traceID,
-		)
-		c.JSON(httpErr.StatusCode, httpErr)
-		return
-	}
-
-	// Parse Bearer token
-	tokenParts := strings.Split(authHeader, " ")
-	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-		httpErr := errors.NewHTTPError(
-			http.StatusUnauthorized,
-			errors.CodeUnauthorized,
-			"Invalid authorization header format",
-			map[string]interface{}{"expected": "Bearer <token>"},
-			traceID,
-		)
-		c.JSON(httpErr.StatusCode, httpErr)
-		return
-	}
-
-	token := tokenParts[1]
+	token := strings.TrimPrefix(authHeader, "Bearer ")
 
 	// Logout user
 	err := h.authService.Logout(c.Request.Context(), token)
@@ -121,54 +96,16 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // GetMe returns current user information based on JWT token
+// Note: This endpoint is protected by auth middleware, so user ID is already available in context
 func (h *AuthHandler) GetMe(c *gin.Context) {
 	traceID := middleware.GetTraceIDFromContext(c.Request.Context())
 
-	// Extract token from Authorization header
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		httpErr := errors.NewHTTPError(
-			http.StatusUnauthorized,
-			errors.CodeUnauthorized,
-			"Authorization header required",
-			map[string]interface{}{"header": "Authorization"},
-			traceID,
-		)
-		c.JSON(httpErr.StatusCode, httpErr)
-		return
-	}
+	// Get user ID from context (injected by auth middleware)
+	userID := middleware.GetUserIDFromGinContext(c)
 
-	// Parse Bearer token
-	tokenParts := strings.Split(authHeader, " ")
-	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-		httpErr := errors.NewHTTPError(
-			http.StatusUnauthorized,
-			errors.CodeUnauthorized,
-			"Invalid authorization header format",
-			map[string]interface{}{"expected": "Bearer <token>"},
-			traceID,
-		)
-		c.JSON(httpErr.StatusCode, httpErr)
-		return
-	}
-
-	token := tokenParts[1]
-
-	// Validate token and get user ID
-	claims, err := h.authService.ValidateToken(c.Request.Context(), token)
-	if err != nil {
-		h.errorLogger.LogError(c.Request.Context(), err, traceID, map[string]interface{}{
-			"operation": "token_validation",
-		})
-
-		httpErr := h.errorMapper.MapToHTTPError(err, traceID)
-		c.JSON(httpErr.StatusCode, httpErr)
-		return
-	}
-
-	// Return user ID from token claims
+	// Return user ID from middleware context
 	c.JSON(http.StatusOK, map[string]interface{}{
-		"user_id":  claims.UserID,
+		"user_id":  userID,
 		"trace_id": traceID,
 	})
 }

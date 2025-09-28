@@ -14,7 +14,7 @@ type Config struct {
 	Database *DatabaseConfig `yaml:"database" mapstructure:"database"`
 	Server   *ServerConfig   `yaml:"server" mapstructure:"server"`
 	Log      *LogConfig      `yaml:"log" mapstructure:"log"`
-	JWT      *JWTConfig       `yaml:"jwt" mapstructure:"jwt"`
+	JWT      *JWTConfig      `yaml:"jwt" mapstructure:"jwt"`
 
 	// Domain layer configurations
 	ID *IDConfig `yaml:"id" mapstructure:"id"`

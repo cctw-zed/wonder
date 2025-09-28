@@ -12,18 +12,20 @@ import (
 	"github.com/cctw-zed/wonder/internal/infrastructure/database"
 	"github.com/cctw-zed/wonder/internal/infrastructure/repository"
 	"github.com/cctw-zed/wonder/internal/interfaces/http"
+	"github.com/cctw-zed/wonder/internal/middleware"
 	"github.com/cctw-zed/wonder/pkg/jwt"
 	"github.com/cctw-zed/wonder/pkg/logger"
 	"github.com/cctw-zed/wonder/pkg/snowflake/id"
 )
 
 type Container struct {
-	Config        *config.Config
-	UserHandler   *http.UserHandler
-	AuthHandler   *http.AuthHandler
-	Database      *database.Connection
-	Logger        logger.Logger
-	nodeAllocator id.NodeIDAllocator // 节点ID分配器，用于优雅关闭时释放资源
+	Config         *config.Config
+	UserHandler    *http.UserHandler
+	AuthHandler    *http.AuthHandler
+	AuthMiddleware *middleware.AuthMiddleware
+	Database       *database.Connection
+	Logger         logger.Logger
+	nodeAllocator  id.NodeIDAllocator // 节点ID分配器，用于优雅关闭时释放资源
 }
 
 func NewContainer() (*Container, error) {
@@ -93,15 +95,19 @@ func NewContainerForEnvironment(ctx context.Context, environment string) (*Conta
 	authService := service.NewAuthService(userService, tokenService)
 	authHandler := http.NewAuthHandler(authService)
 
+	// Initialize auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(authService)
+
 	appLogger.Info(ctx, "container initialized successfully", "service_name", cfg.App.Name, "version", cfg.App.Version)
 
 	return &Container{
-		Config:        cfg,
-		UserHandler:   userHandler,
-		AuthHandler:   authHandler,
-		Database:      dbConn,
-		Logger:        appLogger,
-		nodeAllocator: allocator,
+		Config:         cfg,
+		UserHandler:    userHandler,
+		AuthHandler:    authHandler,
+		AuthMiddleware: authMiddleware,
+		Database:       dbConn,
+		Logger:         appLogger,
+		nodeAllocator:  allocator,
 	}, nil
 }
 
@@ -170,15 +176,19 @@ func NewContainerWithConfig(ctx context.Context, configPath string) (*Container,
 	authService := service.NewAuthService(userService, tokenService)
 	authHandler := http.NewAuthHandler(authService)
 
+	// Initialize auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(authService)
+
 	appLogger.Info(ctx, "container initialized successfully", "service_name", cfg.App.Name, "version", cfg.App.Version)
 
 	return &Container{
-		Config:        cfg,
-		UserHandler:   userHandler,
-		AuthHandler:   authHandler,
-		Database:      dbConn,
-		Logger:        appLogger,
-		nodeAllocator: allocator,
+		Config:         cfg,
+		UserHandler:    userHandler,
+		AuthHandler:    authHandler,
+		AuthMiddleware: authMiddleware,
+		Database:       dbConn,
+		Logger:         appLogger,
+		nodeAllocator:  allocator,
 	}, nil
 }
 

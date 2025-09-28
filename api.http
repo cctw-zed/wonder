@@ -1,0 +1,436 @@
+# Wonder API Documentation
+# Use this file to test API endpoints with HTTP clients like REST Client for VS Code
+
+@baseUrl = http://localhost:8080
+@contentType = application/json
+# @token will be automatically updated by login responses
+@token = {{token}}
+
+### =================== Token Management ===================
+
+### Clear Stored Tokens and Credentials
+GET {{baseUrl}}/health
+
+> {%
+  // Clear all stored authentication data
+  client.global.set("token", "");
+  client.global.set("lastEmail", "");
+  client.global.set("lastPassword", "");
+  console.log("🧹 Cleared all stored tokens and credentials");
+  console.log("📋 Ready for fresh authentication flow");
+%}
+
+### Show Current Token Status
+GET {{baseUrl}}/health
+
+> {%
+  // Display current token and credential status
+  const currentToken = client.global.get("token") || "Not set";
+  const lastEmail = client.global.get("lastEmail") || "Not set";
+  const lastPassword = client.global.get("lastPassword") || "Not set";
+
+  console.log("📊 Current Authentication Status:");
+  console.log("🔑 Token: " + (currentToken === "Not set" ? "❌ Not set" : "✅ " + currentToken.substring(0, 50) + "..."));
+  console.log("📧 Last Email: " + (lastEmail === "Not set" ? "❌ Not set" : "✅ " + lastEmail));
+  console.log("🔒 Last Password: " + (lastPassword === "Not set" ? "❌ Not set" : "✅ [Hidden]"));
+%}
+
+### =================== Health Check ===================
+
+### Health Check (Public)
+# Returns application health status and basic info
+GET {{baseUrl}}/health
+
+# Expected Response:
+# HTTP 200 OK
+# {
+#   "status": "healthy",
+#   "app": "wonder",
+#   "version": "1.0.0",
+#   "environment": "development"
+# }
+
+### =================== Authentication Endpoints ===================
+
+### User Registration (Public) - Auto-login after registration
+POST {{baseUrl}}/api/v1/users/register
+Content-Type: {{contentType}}
+
+{
+  "email": "newuser@example.com",
+  "name": "New User",
+  "password": "password123"
+}
+
+> {%
+  // Auto-login after successful registration
+  if (response.status === 200 || response.status === 201) {
+    console.log("✅ User registered successfully");
+    console.log("📋 Proceeding to auto-login...");
+
+    // Store registration data for auto-login
+    const requestBody = request.body;
+    if (requestBody) {
+      const userData = JSON.parse(requestBody);
+      client.global.set("lastEmail", userData.email);
+      client.global.set("lastPassword", userData.password);
+    }
+  } else {
+    console.log("❌ Registration failed with status: " + response.status);
+  }
+%}
+
+### Expected Response:
+### HTTP 201 Created
+### {
+###   "data": {
+###     "id": "user-id-123",
+###     "email": "newuser@example.com",
+###     "name": "New User",
+###     "created_at": "2025-09-27T10:00:00Z",
+###     "updated_at": "2025-09-27T10:00:00Z"
+###   },
+###   "trace_id": "trace-abc-123"
+### }
+
+### User Login (Public) - Auto-update token
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "newuser@example.com",
+  "password": "password123"
+}
+
+> {%
+  // Auto-extract token from login response and update @token variable
+  if (response.status === 200) {
+    const responseBody = response.body;
+    if (responseBody && responseBody.data && responseBody.data.access_token) {
+      client.global.set("token", responseBody.data.access_token);
+      console.log("🔑 Token extracted: " + responseBody.data.access_token.substring(0, 50) + "...");
+      console.log("✅ @token variable updated! All protected endpoints will now use this token automatically.");
+      console.log("📝 Current @token value: {{token}}");
+    } else {
+      console.log("❌ Failed to extract token from response");
+    }
+  } else {
+    console.log("❌ Login failed with status: " + response.status);
+  }
+%}
+
+### Expected Response:
+# HTTP 200 OK
+# {
+#   "data": {
+#     "user": {
+#       "id": "user-id-123",
+#       "email": "newuser@example.com",
+#       "name": "New User",
+#       "created_at": "2025-09-27T10:00:00Z",
+#       "updated_at": "2025-09-27T10:00:00Z"
+#     },
+#     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+#     "token_type": "Bearer",
+#     "expires_in": 86400
+#   },
+#   "trace_id": "trace-abc-124"
+# }
+#
+# Note: Token will be automatically extracted and stored in @token variable
+
+### Auto-Login with Last Registered User
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{lastEmail}}",
+  "password": "{{lastPassword}}"
+}
+
+> {%
+  // Auto-extract token from login response and update @token variable
+  if (response.status === 200) {
+    const responseBody = response.body;
+    if (responseBody && responseBody.data && responseBody.data.access_token) {
+      client.global.set("token", responseBody.data.access_token);
+      console.log("✅ Auto-login successful! Token updated: " + responseBody.data.access_token.substring(0, 50) + "...");
+    } else {
+      console.log("❌ Failed to extract token from auto-login response");
+    }
+  } else {
+    console.log("❌ Auto-login failed with status: " + response.status);
+  }
+%}
+
+### Get Current User Info (Protected - requires authentication)
+# First login to get a token, then replace {token} with actual token
+GET {{baseUrl}}/api/v1/auth/me
+Authorization: Bearer {{token}}
+
+# Expected Response:
+# HTTP 200 OK
+# {
+#   "user_id": "user-id-123",
+#   "trace_id": "trace-abc-125"
+# }
+
+### User Logout (Protected - requires authentication)
+# Replace {token} with actual JWT token from login
+POST {{baseUrl}}/api/v1/auth/logout
+Authorization: Bearer {{token}}
+
+# Expected Response:
+# HTTP 200 OK
+# {
+#   "message": "Logout successful",
+#   "trace_id": "trace-abc-126"
+# }
+#
+# Note: Current implementation doesn't invalidate token server-side
+# Token remains valid until natural expiration
+
+### =================== User Management Endpoints ===================
+
+### List Users (Optional Auth - may filter results based on user role)
+GET {{baseUrl}}/api/v1/users?page=1&page_size=10
+
+# Expected Response:
+# HTTP 200 OK
+# {
+#   "data": {
+#     "users": [
+#       {
+#         "id": "user-id-123",
+#         "email": "user1@example.com",
+#         "name": "User One",
+#         "created_at": "2025-09-27T10:00:00Z",
+#         "updated_at": "2025-09-27T10:00:00Z"
+#       }
+#     ],
+#     "total": 1,
+#     "page": 1,
+#     "page_size": 10
+#   },
+#   "trace_id": "trace-abc-127"
+# }
+
+### List Users with Authentication (shows more data)
+GET {{baseUrl}}/api/v1/users?page=1&page_size=10
+Authorization: Bearer {token}
+
+### List Users with Name Filter
+GET {{baseUrl}}/api/v1/users?name=User&page=1&page_size=10
+
+### List Users with Multiple Filters
+GET {{baseUrl}}/api/v1/users?name=User&page=2&page_size=5
+
+### Get User Profile (Protected - requires authentication)
+# Replace {user_id} with actual user ID and {token} with JWT token
+GET {{baseUrl}}/api/v1/users/{user_id}
+Authorization: Bearer {token}
+
+### Update User Profile - Name Only (Protected)
+# Replace {user_id} with actual user ID and {token} with JWT token
+PUT {{baseUrl}}/api/v1/users/{user_id}
+Content-Type: {{contentType}}
+Authorization: Bearer {token}
+
+{
+  "name": "Updated User Name"
+}
+
+### Update User Profile - Email Only (Protected)
+# Replace {user_id} with actual user ID and {token} with JWT token
+PUT {{baseUrl}}/api/v1/users/{user_id}
+Content-Type: {{contentType}}
+Authorization: Bearer {token}
+
+{
+  "email": "updated@example.com"
+}
+
+### Update User Profile - Complete (Protected)
+# Replace {user_id} with actual user ID and {token} with JWT token
+PUT {{baseUrl}}/api/v1/users/{user_id}
+Content-Type: {{contentType}}
+Authorization: Bearer {token}
+
+{
+  "name": "Completely Updated Name",
+  "email": "completely.updated@example.com"
+}
+
+### Delete User (Protected - requires authentication)
+# Replace {user_id} with actual user ID and {token} with JWT token
+DELETE {{baseUrl}}/api/v1/users/{user_id}
+Authorization: Bearer {token}
+
+### =================== Error Scenarios ===================
+
+### Get Non-existent User (Protected)
+GET {{baseUrl}}/api/v1/users/nonexistent-id
+Authorization: Bearer {token}
+
+### Update Non-existent User (Protected)
+PUT {{baseUrl}}/api/v1/users/nonexistent-id
+Content-Type: {{contentType}}
+Authorization: Bearer {token}
+
+{
+  "name": "Updated Name"
+}
+
+### Delete Non-existent User (Protected)
+DELETE {{baseUrl}}/api/v1/users/nonexistent-id
+Authorization: Bearer {token}
+
+### Invalid Email Format (Protected)
+# This should return validation error
+PUT {{baseUrl}}/api/v1/users/{user_id}
+Content-Type: {{contentType}}
+Authorization: Bearer {token}
+
+{
+  "email": "invalid-email-format"
+}
+
+### Missing Authorization Header (should return 401)
+GET {{baseUrl}}/api/v1/users/{user_id}
+
+### Invalid Authorization Header Format (should return 401)
+GET {{baseUrl}}/api/v1/users/{user_id}
+Authorization: invalid-token-format
+
+### Empty Bearer Token (should return 401)
+GET {{baseUrl}}/api/v1/users/{user_id}
+Authorization: Bearer
+
+### Invalid JWT Token (should return 401)
+GET {{baseUrl}}/api/v1/users/{user_id}
+Authorization: Bearer invalid.jwt.token
+
+### =================== Usage Instructions ===================
+
+# 🚀 Quick Start with Auto-Token Management:
+# 1. Start the server: go run ./cmd/server/main.go
+# 2. Execute "User Registration" endpoint - it will store credentials automatically
+# 3. Execute "Auto-Login with Last Registered User" - it will extract and set @token automatically
+# 4. All protected endpoints will now use the automatically extracted token
+# 5. The @token variable is automatically updated after each successful login
+
+# 📋 Manual Testing Flow:
+# 1. Start the server: go run ./cmd/server/main.go
+# 2. First register a new user using the registration endpoint
+# 3. Login with the same credentials to get a JWT token
+# 4. Copy the access_token from the login response
+# 5. Replace {token} in protected endpoints with the actual token
+# 6. Replace {user_id} with actual user IDs from responses
+# 7. Test the endpoints using your preferred HTTP client
+
+# 🔄 Token Management Features:
+# - Login endpoints automatically extract and store JWT tokens in @token variable
+# - Registration endpoint stores email/password for quick auto-login
+# - Console logs show token update status and success/failure messages
+# - All protected endpoints use {{token}} which is automatically managed
+
+### =================== Example Flow ===================
+
+# Step 1: Register a user (Auto-stores credentials)
+# POST /api/v1/users/register
+
+# Step 2: Auto-login (Auto-extracts token)
+# POST /api/v1/auth/login (Auto-Login with Last Registered User)
+# Token automatically stored in @token variable
+
+# Step 3: Use protected endpoints (Token auto-applied)
+# All endpoints with Authorization: Bearer {{token}} will use the extracted token
+
+# Step 4: Test user operations with auto-managed authentication
+
+### =================== Additional Test Scenarios ===================
+
+### Test Pagination - Large Page Size
+GET {{baseUrl}}/api/v1/users?page=1&page_size=100
+
+### Test Pagination - Edge Cases
+GET {{baseUrl}}/api/v1/users?page=0&page_size=0
+
+### Test Invalid Parameters
+GET {{baseUrl}}/api/v1/users?page=-1&page_size=-10
+
+### Test Special Characters in Name Filter
+GET {{baseUrl}}/api/v1/users?name=@#$%&page=1&page_size=10
+
+### =================== Concurrent Request Testing ===================
+
+### Multiple simultaneous logins (test with multiple requests)
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "newuser@example.com",
+  "password": "password123"
+}
+
+### =================== Performance Testing ===================
+
+### Stress test user listing with large page size
+GET {{baseUrl}}/api/v1/users?page=1&page_size=1000
+
+### =================== Security Testing ===================
+
+### SQL Injection Attempt in Name Filter
+GET {{baseUrl}}/api/v1/users?name='; DROP TABLE users; --&page=1&page_size=10
+
+### XSS Attempt in Name Filter
+GET {{baseUrl}}/api/v1/users?name=<script>alert('xss')</script>&page=1&page_size=10
+
+### Path Traversal Attempt in User ID
+GET {{baseUrl}}/api/v1/users/../../../etc/passwd
+Authorization: Bearer {token}
+
+### =================== Rate Limiting Testing ===================
+
+### Rapid requests to test rate limiting (if implemented)
+### Send these requests in quick succession:
+
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "newuser@example.com",
+  "password": "wrongpassword"
+}
+
+### =================== Data Validation Testing ===================
+
+### Register with extremely long name
+POST {{baseUrl}}/api/v1/users/register
+Content-Type: {{contentType}}
+
+{
+  "email": "longname@example.com",
+  "name": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "password": "password123"
+}
+
+### Register with empty fields
+POST {{baseUrl}}/api/v1/users/register
+Content-Type: {{contentType}}
+
+{
+  "email": "",
+  "name": "",
+  "password": ""
+}
+
+### Register with special characters
+POST {{baseUrl}}/api/v1/users/register
+Content-Type: {{contentType}}
+
+{
+  "email": "special+chars@example.com",
+  "name": "User™ 你好 🚀",
+  "password": "password!@#$%^&*()"
+}
