@@ -1,0 +1,69 @@
+# Infrastructure Layer - Persistent Data Services
+# These services maintain state and should rarely be restarted during development
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wonder-postgres
+    environment:
+      POSTGRES_DB: wonder_dev
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - wonder-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    networks:
+      - wonder-network
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.1
+    container_name: wonder-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - wonder-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: wonder-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/wonder-service-overview.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./backend/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - wonder-network
+    restart: unless-stopped
+
+networks:
+  wonder-network:
+    driver: bridge
+    name: wonder-network
+
+volumes:
+  wonder-postgres-data:
+    name: wonder-postgres-data
+  grafana-data:
+    name: wonder-grafana-data
+  elasticsearch-data:
+    name: wonder-elasticsearch-data

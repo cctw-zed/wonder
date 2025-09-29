@@ -18,6 +18,7 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME) 
 
 # Phony targets
 .PHONY: build build-all test run run-test clean kill help codex-context docker-build docker-up docker-down docker-logs
+.PHONY: dev-setup dev-rebuild dev-rebuild-backend dev-rebuild-frontend dev-status dev-urls dev-stop-apps dev-clean-all
 
 # Create bin directory
 $(BIN_DIR):
@@ -93,21 +94,104 @@ docker-logs:
 	@echo "📜 Streaming Docker logs..."
 	@docker compose logs -f
 
+# === NEW DEVELOPMENT WORKFLOW COMMANDS ===
+
+# Set up complete development environment
+dev-setup:
+	@echo "🚀 Setting up Wonder development environment..."
+	@./scripts/dev-setup.sh
+
+# Quick rebuild commands
+dev-rebuild:
+	@echo "🔄 Quick rebuild: Application layer..."
+	@./scripts/dev-rebuild.sh
+
+dev-rebuild-backend:
+	@echo "🔧 Rebuilding backend only..."
+	@./scripts/dev-rebuild.sh --backend-only
+
+dev-rebuild-frontend:
+	@echo "🌐 Rebuilding frontend only..."
+	@./scripts/dev-rebuild.sh --frontend-only
+
+dev-rebuild-no-cache:
+	@echo "🔄 Rebuilding without cache..."
+	@./scripts/dev-rebuild.sh --no-cache
+
+# Status and monitoring
+dev-status:
+	@echo "📋 Wonder Environment Status:"
+	@echo ""
+	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep wonder- || echo "No Wonder services running"
+
+dev-urls:
+	@echo "🌐 Wonder Development Environment URLs:"
+	@echo ""
+	@echo "Application Services:"
+	@echo "  🌐 Frontend:     http://localhost:3001"
+	@echo "  🔧 Backend API:  http://localhost:8080"
+	@echo ""
+	@echo "Monitoring & Analytics:"
+	@echo "  📊 Grafana:      http://localhost:3000 (admin/admin)"
+	@echo "  📈 Prometheus:   http://localhost:9090"
+	@echo "  📋 Kibana:       http://localhost:5601"
+	@echo "  📦 cAdvisor:     http://localhost:8081"
+	@echo ""
+	@echo "Infrastructure:"
+	@echo "  🗄️  PostgreSQL:   localhost:5432 (dev/dev/wonder_dev)"
+	@echo "  🔍 Elasticsearch: http://localhost:9200"
+
+# Cleanup commands
+dev-stop-apps:
+	@echo "🛑 Stopping application services..."
+	@./scripts/dev-cleanup.sh --app
+
+dev-stop-all:
+	@echo "🛑 Stopping all services..."
+	@./scripts/dev-cleanup.sh --all
+
+dev-clean-all:
+	@echo "🗑️  Complete cleanup (removes all data)..."
+	@./scripts/dev-cleanup.sh --all --volumes
+
 # Show help
 help:
 	@echo "Wonder Project Makefile"
 	@echo ""
-	@echo "Available targets:"
-	@echo "  build      Build server binary to bin/ directory"
-	@echo "  build-all  Build server for all platforms"
-	@echo "  test       Run tests"
-	@echo "  run        Run server in development mode"
-	@echo "  run-test   Run server in testing mode"
-	@echo "  clean      Clean build artifacts"
-	@echo "  kill       Kill all wonder server processes"
-	@echo "  help       Show this help message"
+	@echo "🏗️  Build Commands:"
+	@echo "  build                  Build server binary to bin/ directory"
+	@echo "  build-all              Build server for all platforms"
+	@echo "  test                   Run tests"
+	@echo "  run                    Run server in development mode"
+	@echo "  run-test               Run server in testing mode"
+	@echo "  clean                  Clean build artifacts"
+	@echo "  kill                   Kill all wonder server processes"
 	@echo ""
-	@echo "Examples:"
-	@echo "  make build              # Build server"
-	@echo "  make run-test           # Start testing environment"
-	@echo "  make VERSION=2.0.0 build # Build with specific version"
+	@echo "🚀 Development Environment (NEW):"
+	@echo "  dev-setup              Set up complete development environment"
+	@echo "  dev-rebuild            Rebuild applications (preserves data)"
+	@echo "  dev-rebuild-backend    Rebuild only backend service"
+	@echo "  dev-rebuild-frontend   Rebuild only frontend service"
+	@echo "  dev-rebuild-no-cache   Rebuild without Docker cache"
+	@echo ""
+	@echo "📊 Monitoring & Status:"
+	@echo "  dev-status             Show status of all services"
+	@echo "  dev-urls               Show all service URLs"
+	@echo ""
+	@echo "🧹 Cleanup:"
+	@echo "  dev-stop-apps          Stop application services only"
+	@echo "  dev-stop-all           Stop all services (preserves data)"
+	@echo "  dev-clean-all          Complete reset (⚠️  removes all data)"
+	@echo ""
+	@echo "🐳 Legacy Docker Commands:"
+	@echo "  docker-build           Build Docker images"
+	@echo "  docker-up              Start Docker stack"
+	@echo "  docker-down            Stop Docker stack"
+	@echo "  docker-logs            Stream Docker logs"
+	@echo ""
+	@echo "📋 Examples:"
+	@echo "  make dev-setup                    # First time setup"
+	@echo "  make dev-rebuild                  # Quick redeploy after code changes"
+	@echo "  make dev-rebuild-backend          # Redeploy backend only"
+	@echo "  make dev-status                   # Check what's running"
+	@echo "  make VERSION=2.0.0 build          # Build with specific version"

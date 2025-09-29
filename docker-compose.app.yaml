@@ -1,0 +1,69 @@
+# Application Layer - Frequently Updated Services
+# These services are rebuilt and redeployed during development
+
+services:
+  wonder-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wonder-backend
+    environment:
+      WONDER_APP_ENVIRONMENT: development
+      WONDER_APP_DEBUG: "false"
+      WONDER_SERVER_HOST: 0.0.0.0
+      WONDER_SERVER_PORT: 8080
+      WONDER_SERVER_ENABLE_CORS: "true"
+      WONDER_DATABASE_HOST: postgres
+      WONDER_DATABASE_PORT: 5432
+      WONDER_DATABASE_USERNAME: dev
+      WONDER_DATABASE_PASSWORD: dev
+      WONDER_DATABASE_DATABASE: wonder_dev
+      WONDER_DATABASE_SSL_MODE: disable
+      WONDER_DATABASE_LOG_LEVEL: warn
+      WONDER_LOG_OUTPUT: stdout
+      WONDER_LOG_ENABLE_FILE: "false"
+      WONDER_LOG_LEVEL: info
+      WONDER_JWT_SIGNING_KEY: super-secret-demo-key
+      WONDER_JWT_EXPIRY: 24h
+    ports:
+      - "8080:8080"
+    networks:
+      - wonder-network
+    restart: unless-stopped
+    # Enable GELF logging to Logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+
+  wonder-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wonder-frontend
+    environment:
+      NODE_ENV: production
+      # Client-side API URL (accessible from browser)
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      # Server-side API URL (for SSR, accessible within Docker network)
+      API_URL: http://wonder-backend:8080
+      PORT: 3001
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "3001:3001"
+    networks:
+      - wonder-network
+    restart: unless-stopped
+    depends_on:
+      - wonder-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+networks:
+  wonder-network:
+    external: true
+    name: wonder-network

@@ -1,64 +1,102 @@
-# Wonder - Full-Stack Application
+# Wonder Project
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
-[![Frontend](https://img.shields.io/badge/Frontend-Modern%20Stack-brightgreen.svg)](#frontend)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](#docker-deployment)
+[![Next.js](https://img.shields.io/badge/Next.js-14+-black.svg)](https://nextjs.org)
+[![Docker](https://img.shields.io/badge/Docker-Layered%20Architecture-blue.svg)](#layered-deployment)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](#)
 
-A modern, scalable full-stack application with clean architecture separation between frontend and backend components.
+A modern full-stack application with **layered deployment architecture** for optimal development experience and data persistence.
 
-## 🏗️ Project Architecture
+## 🏗️ Layered Architecture
 
-Wonder follows a **microservice-oriented architecture** with clear separation between frontend and backend:
+Wonder uses a **layered deployment architecture** that separates concerns for better development experience:
+
+- **Infrastructure Layer**: PostgreSQL, Elasticsearch, Grafana (persistent data services)
+- **Monitoring Layer**: Prometheus, Logstash, Kibana, cAdvisor (stateless monitoring services)
+- **Application Layer**: Backend API (Go) and Frontend Web (Next.js) (frequently updated services)
 
 ```
 wonder/
-├── backend/          # Go backend service with DDD architecture
-├── frontend/         # Modern frontend application
-├── README.md         # This file - project overview
-└── docker-compose.yml # Full-stack deployment (planned)
+├── backend/                    # Go API service
+├── frontend/                   # Next.js web application
+├── scripts/                    # Development automation scripts
+├── docker-compose.*.yaml       # Layered Docker configurations
+├── Makefile                    # Development commands
+└── README.md                   # This file
 ```
+
+This separation ensures:
+- ✅ Data is preserved when rebuilding applications
+- ✅ Monitoring dashboards and configurations persist
+- ✅ Quick rebuilds don't affect the entire stack
+- ✅ Independent scaling and maintenance
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Docker & Docker Compose** (recommended for full-stack setup)
+- **Docker & Docker Compose** (required)
 - **Go 1.24+** (for backend development)
 - **Node.js 18+** (for frontend development)
 
-### Full-Stack Setup with Docker
+### First Time Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/wonder.git
+# Clone and navigate to project
+git clone <repository-url>
 cd wonder
 
-# Start the full stack (backend + frontend + monitoring)
-docker-compose up -d
-
-# View services
-docker-compose ps
+# Set up complete development environment
+make setup
 ```
 
-### Development Setup
+This will start all services in the correct order and show service URLs when ready.
 
-#### Backend Development
+### Daily Development Workflow
+
 ```bash
-cd backend/
-source .envrc
-go mod download
-go run cmd/server/main.go
-```
-**📖 [Backend Documentation](backend/README.md)**
+# Check what's running
+make status
 
-#### Frontend Development
-```bash
-cd frontend/
-npm install
-npm run dev
+# After making backend changes
+make rebuild-backend
+
+# After making frontend changes
+make rebuild-frontend
+
+# After making changes to both
+make rebuild
+
+# View service URLs
+make urls
+
+# Check logs
+make logs
 ```
-**📖 [Frontend Documentation](frontend/README.md)** *(to be created)*
+
+## 📋 Available Commands
+
+### 🚀 Environment Management
+- `make setup` - Set up complete development environment
+- `make status` - Show status of all services
+- `make urls` - Show all service URLs
+- `make logs` - Show logs from all services
+
+### 🔄 Quick Development
+- `make rebuild` - Rebuild applications (preserves data)
+- `make rebuild-backend` - Rebuild only backend service
+- `make rebuild-frontend` - Rebuild only frontend service
+- `make rebuild-no-cache` - Rebuild without Docker cache
+
+### 🧹 Cleanup
+- `make stop-apps` - Stop application services only
+- `make stop-all` - Stop all services (preserves data)
+- `make clean-all` - Complete reset (⚠️ removes all data)
+
+### 🧪 Testing
+- `make test` - Run all tests
+- `make test-backend` - Run backend tests only
+- `make test-frontend` - Run frontend tests only
 
 ## 🎯 Service Overview
 

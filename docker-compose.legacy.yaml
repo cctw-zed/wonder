@@ -10,7 +10,7 @@ services:
     volumes:
       - wonder-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wonder"]
+      test: ["CMD-SHELL", "pg_isready -U dev"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,10 +19,10 @@ services:
     networks:
       - wonder-network
 
-  wonder:
+  wonder-backend:
     build:
       context: .
-    container_name: wonder-app
+    container_name: wonder-backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,10 +49,35 @@ services:
     networks:
       - wonder-network
     restart: unless-stopped
-    logging:
-      driver: gelf
-      options:
-        gelf-address: "udp://127.0.0.1:12201"
+    # Temporarily disable GELF logging for testing
+    # logging:
+    #   driver: gelf
+    #   options:
+    #     gelf-address: "udp://logstash:12201"
+
+  wonder-frontend:
+    build:
+      context: ../frontend
+    container_name: wonder-frontend
+    depends_on:
+      wonder-backend:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://wonder-backend:8080
+      PORT: 3001
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "3001:3001"
+    networks:
+      - wonder-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
 
   prometheus:
     image: prom/prometheus:v2.53.0
@@ -71,7 +96,7 @@ services:
     networks:
       - wonder-network
     depends_on:
-      wonder:
+      wonder-backend:
         condition: service_started
 
   grafana:

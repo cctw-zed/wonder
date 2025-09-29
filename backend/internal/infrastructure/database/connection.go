@@ -131,9 +131,9 @@ func NewConnectionFromEnv() (*Connection, error) {
 	cfg := &config.DatabaseConfig{
 		Host:            getEnvOrDefault("DB_HOST", "localhost"),
 		Port:            getEnvIntOrDefault("DB_PORT", 5432),
-		Username:        getEnvOrDefault("DB_USERNAME", "postgres"),
-		Password:        getEnvOrDefault("DB_PASSWORD", "password"),
-		Database:        getEnvOrDefault("DB_DATABASE", "wonder"),
+		Username:        getEnvOrDefault("DB_USERNAME", "dev"),
+		Password:        getEnvOrDefault("DB_PASSWORD", "dev"),
+		Database:        getEnvOrDefault("DB_DATABASE", "wonder_dev"),
 		SSLMode:         getEnvOrDefault("DB_SSL_MODE", "disable"),
 		Timezone:        getEnvOrDefault("DB_TIMEZONE", "UTC"),
 		MaxOpenConns:    getEnvIntOrDefault("DB_MAX_OPEN_CONNS", 25),
